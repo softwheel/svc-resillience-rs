@@ -215,11 +215,16 @@ impl CircuitBreaker {
         })
     }
 
-    pub fn call<T, E, Operation>(&self, operation: Operation) -> Result<T, CircuitBreakerCallError<E>>
+    pub fn call<T, E, Operation>(
+        &self,
+        operation: Operation,
+    ) -> Result<T, CircuitBreakerCallError<E>>
     where
         Operation: FnOnce() -> Result<T, E>,
     {
-        let permit = self.try_acquire().map_err(CircuitBreakerCallError::Rejected)?;
+        let permit = self
+            .try_acquire()
+            .map_err(CircuitBreakerCallError::Rejected)?;
 
         match operation() {
             Ok(value) => {
@@ -321,7 +326,10 @@ impl CircuitBreaker {
     }
 
     fn lock(&self) -> MutexGuard<'_, Shared> {
-        self.inner.shared.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+        self.inner
+            .shared
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 }
 
@@ -382,11 +390,8 @@ mod tests {
 
     #[test]
     fn half_open_success_closes_circuit() {
-        let breaker = CircuitBreaker::new(CircuitBreakerConfig::new(
-            1,
-            Duration::from_millis(1),
-            1,
-        ).unwrap());
+        let breaker =
+            CircuitBreaker::new(CircuitBreakerConfig::new(1, Duration::from_millis(1), 1).unwrap());
         breaker.try_acquire().unwrap().failure();
         std::thread::sleep(Duration::from_millis(2));
         assert_eq!(breaker.state(), CircuitState::HalfOpen);
