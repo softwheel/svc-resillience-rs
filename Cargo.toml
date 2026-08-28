@@ -1,0 +1,18 @@
+[package]
+name = "softwheel-resilience"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "Composable resilience primitives for Rust distributed systems."
+repository = "https://github.com/softwheel/svc-resilience-rs"
+license = "MIT"
+keywords = ["resilience", "retry", "circuit-breaker", "distributed-systems"]
+categories = ["asynchronous", "concurrency", "network-programming"]
+
+[features]
+default = []
+tokio = ["dep:tokio"]
+
+[dependencies]
+fastrand = "2"
+tokio = { version = "1", features = ["time"], optional = true }
