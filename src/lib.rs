@@ -17,7 +17,7 @@ pub use circuit_breaker::{
 pub use retry::{
     BackoffConfigError, ExponentialBackoff, Jitter, RetryDecision, RetryPolicy, retry,
 };
-pub use routing::{Route, RouteId, RouteTable, RouteTableError};
+pub use routing::{Route, RouteId, RouteTable, RouteTableError, RouteTableStore};
 
 #[cfg(feature = "tokio")]
 pub use retry::retry_async;
