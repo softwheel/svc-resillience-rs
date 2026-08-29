@@ -192,12 +192,9 @@ impl RouteFailover {
                     ));
                 }
 
-                let Some(route) = select_remaining(
-                    &self.snapshot,
-                    &self.eligibility,
-                    &self.attempted,
-                    draw,
-                )? else {
+                let Some(route) =
+                    select_remaining(&self.snapshot, &self.eligibility, &self.attempted, draw)?
+                else {
                     return Ok(RouteDecision::Stop(
                         RouteStopReason::NoRemainingEligibleRoute,
                     ));
@@ -337,9 +334,8 @@ mod tests {
     #[test]
     fn shared_eligibility_excludes_rejected_routes_from_failover() {
         let snapshot = table();
-        let eligibility = RouteEligibility::from_predicate(&snapshot, |route| {
-            route.id().as_str() != "b"
-        });
+        let eligibility =
+            RouteEligibility::from_predicate(&snapshot, |route| route.id().as_str() != "b");
         let mut failover = RouteFailover::from_primary_eligibility(
             Arc::clone(&snapshot),
             eligibility,
@@ -381,17 +377,11 @@ mod tests {
             RouteFailoverError
         );
 
-        let eligibility = RouteEligibility::from_predicate(&snapshot, |route| {
-            route.id().as_str() != "a"
-        });
+        let eligibility =
+            RouteEligibility::from_predicate(&snapshot, |route| route.id().as_str() != "a");
         assert_eq!(
-            RouteFailover::from_primary_eligibility(
-                snapshot,
-                eligibility,
-                budget(2),
-                id("a"),
-            )
-            .unwrap_err(),
+            RouteFailover::from_primary_eligibility(snapshot, eligibility, budget(2), id("a"),)
+                .unwrap_err(),
             RouteFailoverError
         );
     }
