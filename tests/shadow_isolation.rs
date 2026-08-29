@@ -1,9 +1,7 @@
 use std::num::NonZeroUsize;
 use std::time::Duration;
 
-use softwheel_resilience::{
-    Bulkhead, CircuitBreaker, CircuitBreakerConfig, CircuitState,
-};
+use softwheel_resilience::{Bulkhead, CircuitBreaker, CircuitBreakerConfig, CircuitState};
 
 fn breaker() -> CircuitBreaker {
     CircuitBreaker::new(
