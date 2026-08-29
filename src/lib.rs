@@ -6,6 +6,7 @@
 
 pub mod bulkhead;
 pub mod circuit_breaker;
+pub mod eligibility;
 pub mod failover;
 pub mod retry;
 pub mod routing;
@@ -16,6 +17,7 @@ pub use circuit_breaker::{
     CircuitBreaker, CircuitBreakerCallError, CircuitBreakerConfig, CircuitBreakerConfigError,
     CircuitBreakerRejected, CircuitState,
 };
+pub use eligibility::{RouteEligibility, RouteEligibilityError};
 pub use failover::{
     RouteAttempt, RouteAttemptBudget, RouteDecision, RouteFailover, RouteFailoverError,
     RouteOutcome, RouteStopReason,
