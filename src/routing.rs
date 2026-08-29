@@ -75,7 +75,9 @@ impl fmt::Display for RouteTableError {
             Self::EmptyRouteTable => "route table must contain at least one route",
             Self::EmptyRouteId => "route id must not be empty",
             Self::DuplicateRouteId => "route table contains a duplicate route id",
-            Self::NoWeightedEligibleRoute => "route table has no enabled route with positive weight",
+            Self::NoWeightedEligibleRoute => {
+                "route table has no enabled route with positive weight"
+            }
             Self::WeightOverflow => "total eligible route weight overflowed u64",
             Self::DrawOutOfRange => "weighted-selection draw was outside the requested range",
         };
@@ -184,13 +186,15 @@ mod tests {
         );
         assert_eq!(RouteId::new("").unwrap_err(), RouteTableError::EmptyRouteId);
         assert_eq!(
-            RouteTable::new(0, vec![Route::new(id("a"), 1), Route::new(id("a"), 2)])
-                .unwrap_err(),
+            RouteTable::new(0, vec![Route::new(id("a"), 1), Route::new(id("a"), 2)]).unwrap_err(),
             RouteTableError::DuplicateRouteId
         );
         assert_eq!(
-            RouteTable::new(0, vec![Route::new(id("a"), 0), Route::new(id("b"), 9).disabled()])
-                .unwrap_err(),
+            RouteTable::new(
+                0,
+                vec![Route::new(id("a"), 0), Route::new(id("b"), 9).disabled()]
+            )
+            .unwrap_err(),
             RouteTableError::NoWeightedEligibleRoute
         );
         assert_eq!(
@@ -243,16 +247,10 @@ mod tests {
 
     #[test]
     fn equal_relative_weights_have_equal_deterministic_distribution() {
-        let one_one = RouteTable::new(
-            1,
-            vec![Route::new(id("a"), 1), Route::new(id("b"), 1)],
-        )
-        .unwrap();
-        let fifty_fifty = RouteTable::new(
-            1,
-            vec![Route::new(id("a"), 50), Route::new(id("b"), 50)],
-        )
-        .unwrap();
+        let one_one =
+            RouteTable::new(1, vec![Route::new(id("a"), 1), Route::new(id("b"), 1)]).unwrap();
+        let fifty_fifty =
+            RouteTable::new(1, vec![Route::new(id("a"), 50), Route::new(id("b"), 50)]).unwrap();
 
         let samples = 10_000_u64;
         let one_one_a = (0..samples)
