@@ -256,6 +256,55 @@ mod tests {
     }
 
     #[test]
+    fn full_jitter_never_exceeds_exponential_cap() {
+        let backoff = ExponentialBackoff::new(
+            Duration::from_millis(10),
+            Duration::from_millis(80),
+            2,
+            Jitter::Full,
+        )
+        .unwrap();
+
+        for attempt in 1..=12 {
+            let exponent = attempt - 1;
+            let expected_cap = Duration::from_millis(
+                10_u64
+                    .saturating_mul(2_u64.saturating_pow(exponent))
+                    .min(80),
+            );
+            for _ in 0..256 {
+                assert!(backoff.delay_after(attempt) <= expected_cap);
+            }
+        }
+    }
+
+    #[test]
+    fn equal_jitter_stays_between_half_cap_and_cap() {
+        let backoff = ExponentialBackoff::new(
+            Duration::from_millis(10),
+            Duration::from_millis(80),
+            2,
+            Jitter::Equal,
+        )
+        .unwrap();
+
+        for attempt in 1..=12 {
+            let exponent = attempt - 1;
+            let cap = Duration::from_millis(
+                10_u64
+                    .saturating_mul(2_u64.saturating_pow(exponent))
+                    .min(80),
+            );
+            let floor = cap / 2;
+            for _ in 0..256 {
+                let delay = backoff.delay_after(attempt);
+                assert!(delay >= floor, "delay {delay:?} below floor {floor:?}");
+                assert!(delay <= cap, "delay {delay:?} above cap {cap:?}");
+            }
+        }
+    }
+
+    #[test]
     fn retry_budget_stops_at_max_attempts() {
         let policy = RetryPolicy::new(NonZeroU32::new(3).unwrap(), deterministic_backoff());
         assert!(policy
@@ -267,6 +316,48 @@ mod tests {
         assert!(policy
             .next_delay(3, Duration::ZERO, RetryDecision::Retry)
             .is_none());
+    }
+
+    #[test]
+    fn max_elapsed_accepts_exact_boundary_and_rejects_overrun() {
+        let policy = RetryPolicy::new(NonZeroU32::new(3).unwrap(), deterministic_backoff())
+            .with_max_elapsed(Duration::from_millis(25));
+
+        assert_eq!(
+            policy.next_delay(1, Duration::from_millis(15), RetryDecision::Retry,),
+            Some(Duration::from_millis(10))
+        );
+        assert_eq!(
+            policy.next_delay(1, Duration::from_millis(16), RetryDecision::Retry,),
+            None
+        );
+    }
+
+    #[test]
+    fn retry_executes_at_most_configured_attempts() {
+        let policy = RetryPolicy::new(
+            NonZeroU32::new(3).unwrap(),
+            ExponentialBackoff::new(
+                Duration::from_nanos(1),
+                Duration::from_nanos(1),
+                1,
+                Jitter::None,
+            )
+            .unwrap(),
+        );
+        let mut calls = 0;
+
+        let result: Result<(), &'static str> = retry(
+            &policy,
+            || {
+                calls += 1;
+                Err("transient")
+            },
+            |_| RetryDecision::Retry,
+        );
+
+        assert_eq!(result, Err("transient"));
+        assert_eq!(calls, 3);
     }
 
     #[test]
