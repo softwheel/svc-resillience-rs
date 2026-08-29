@@ -361,9 +361,8 @@ mod tests {
 
     #[test]
     fn replacement_rejects_generation_exhaustion_without_publication() {
-        let store = RouteTableStore::new(
-            RouteTable::new(u64::MAX, single_route("last", 1)).unwrap(),
-        );
+        let store =
+            RouteTableStore::new(RouteTable::new(u64::MAX, single_route("last", 1)).unwrap());
         let before = store.snapshot();
 
         assert_eq!(
