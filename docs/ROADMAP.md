@@ -16,11 +16,12 @@
 Spec: `docs/specs/0002-routing-shadowing.md`
 
 - [x] Define snapshot, weighted-selection, failover, shadow-isolation, cancellation, and verification semantics before implementation.
-- [ ] M1.1 immutable route model, validation, generation metadata, and deterministic weighted primary selection.
-- [ ] M1.2 whole-snapshot concurrent publication with no mixed-generation reads.
-- [ ] M1.3 deterministic bounded shadow sampling and primary + shadow route planning.
-- [ ] M1.4 execution-isolation verification: separate breaker/bulkhead/retry/deadline accounting and non-blocking primary completion.
-- [ ] M1.5 explicit bounded route failover distinct from physical-attempt retry.
+- [x] M1.1 immutable route model, validation, generation metadata, and deterministic weighted primary selection. Merged in #13.
+- [x] M1.2 whole-snapshot concurrent publication with no mixed-generation reads. Merged in #14.
+- [x] M1.3 deterministic bounded shadow sampling and primary + shadow route planning. Merged in #15.
+- [x] M1.4 execution-isolation verification for separate breaker/bulkhead accounting and non-blocking primary completion. Merged in #16.
+- [x] M1.5 explicit bounded route failover distinct from physical-attempt retry. Implemented in #17.
+- [ ] M1.6 close remaining Spec 0002 gaps: health/policy filtering, explicit shadow retry/deadline policy, cancellation/overload observability, and public API examples.
 - [ ] Verify Spec 0002 and close M1.
 
 ## M2 — production integration

@@ -6,6 +6,7 @@
 
 pub mod bulkhead;
 pub mod circuit_breaker;
+pub mod failover;
 pub mod retry;
 pub mod routing;
 pub mod shadow;
@@ -14,6 +15,10 @@ pub use bulkhead::{Bulkhead, BulkheadCallError, BulkheadPermit, BulkheadRejected
 pub use circuit_breaker::{
     CircuitBreaker, CircuitBreakerCallError, CircuitBreakerConfig, CircuitBreakerConfigError,
     CircuitBreakerRejected, CircuitState,
+};
+pub use failover::{
+    RouteAttempt, RouteAttemptBudget, RouteDecision, RouteFailover, RouteFailoverError,
+    RouteOutcome, RouteStopReason,
 };
 pub use retry::{
     BackoffConfigError, ExponentialBackoff, Jitter, RetryDecision, RetryPolicy, retry,
