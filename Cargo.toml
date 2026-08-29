@@ -1,8 +1,8 @@
 [package]
 name = "softwheel-resilience"
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.75"
+edition = "2024"
+rust-version = "1.98"
 description = "Composable resilience primitives for Rust distributed systems."
 repository = "https://github.com/softwheel/svc-resilience-rs"
 license = "MIT"
@@ -14,10 +14,9 @@ default = []
 tokio = ["dep:tokio"]
 
 [dependencies]
-# Reviewed baseline: 2.5.0 (MSRV 1.63). Caret compatibility keeps downstream resolution flexible.
+# Keep dependency requirements broad enough for downstream applications to unify compatible
+# versions while developing the crate itself on the latest stable Rust toolchain.
 fastrand = "2.5"
-# Reviewed baseline: 1.51.0 LTS (MSRV 1.71). Do not pin a Tokio minor in a library: downstream
-# applications should be able to unify on a compatible Tokio 1.x runtime.
 tokio = { version = "1.51", features = ["time"], optional = true }
 
 [dev-dependencies]
