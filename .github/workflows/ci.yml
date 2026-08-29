@@ -28,6 +28,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.75.0
+      - name: Resolve reviewed MSRV dependency baseline
+        run: |
+          cargo generate-lockfile
+          cargo update -p fastrand --precise 2.5.0
+          cargo update -p tokio --precise 1.51.0
+          cargo update -p loom --precise 0.7.2
       - run: cargo test --all-features
 
   loom:
