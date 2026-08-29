@@ -99,8 +99,8 @@ pub struct RouteFailover {
 
 impl RouteFailover {
     pub fn new(snapshot: Arc<RouteTable>, budget: RouteAttemptBudget) -> Self {
-        let primary = snapshot.select();
-        Self::from_primary(snapshot, budget, primary.id().clone())
+        let primary = snapshot.select().id().clone();
+        Self::from_primary(snapshot, budget, primary)
     }
 
     pub fn new_with<F>(
@@ -112,8 +112,10 @@ impl RouteFailover {
         F: FnOnce(Range<u64>) -> u64,
     {
         let primary = select_remaining(&snapshot, &HashSet::new(), draw)?
-            .expect("validated route table always has an eligible primary route");
-        Ok(Self::from_primary(snapshot, budget, primary.id().clone()))
+            .expect("validated route table always has an eligible primary route")
+            .id()
+            .clone();
+        Ok(Self::from_primary(snapshot, budget, primary))
     }
 
     fn from_primary(
@@ -279,14 +281,18 @@ mod tests {
     fn failover_is_bounded_and_never_revisits_a_route() {
         let mut failover = RouteFailover::new_with(table(), budget(3), |_| 0).unwrap();
 
-        let first = failover.classify_with(RouteOutcome::Failover, |_| 0).unwrap();
+        let first = failover
+            .classify_with(RouteOutcome::Failover, |_| 0)
+            .unwrap();
         let RouteDecision::Failover(first) = first else {
             panic!("expected first failover")
         };
         assert_eq!(first.route_id().as_str(), "b");
         assert_eq!(first.ordinal(), 1);
 
-        let second = failover.classify_with(RouteOutcome::Failover, |_| 0).unwrap();
+        let second = failover
+            .classify_with(RouteOutcome::Failover, |_| 0)
+            .unwrap();
         let RouteDecision::Failover(second) = second else {
             panic!("expected second failover")
         };
