@@ -1,9 +1,9 @@
 #![cfg(feature = "tokio")]
 
-use softwheel_resilience::{retry_async, ExponentialBackoff, Jitter, RetryDecision, RetryPolicy};
+use softwheel_resilience::{ExponentialBackoff, Jitter, RetryDecision, RetryPolicy, retry_async};
 use std::num::NonZeroU32;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 #[tokio::test]
