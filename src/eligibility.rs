@@ -4,11 +4,6 @@ use std::ops::Range;
 
 use crate::routing::{Route, RouteId, RouteTable};
 
-/// Immutable eligibility decision derived from one routing snapshot.
-///
-/// Callers may derive this once from declarative health/policy state and reuse it for primary,
-/// shadow, and failover selection throughout one logical request. This prevents a time-varying
-/// predicate from being re-evaluated between routing decisions.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RouteEligibility {
     generation: u64,
@@ -16,15 +11,10 @@ pub struct RouteEligibility {
 }
 
 impl RouteEligibility {
-    /// Accept every enabled route with positive weight from this snapshot.
     pub fn all(table: &RouteTable) -> Self {
         Self::from_predicate(table, |_| true)
     }
 
-    /// Evaluate caller-supplied declarative health/policy exactly once per route.
-    ///
-    /// Circuit-breaker admission is deliberately not part of this predicate. Breaker state is
-    /// execution state and remains per physical attempt.
     pub fn from_predicate<F>(table: &RouteTable, mut predicate: F) -> Self
     where
         F: FnMut(&Route) -> bool,
@@ -53,10 +43,6 @@ impl RouteEligibility {
         self.eligible.is_empty()
     }
 
-    /// Deterministically select one eligible route after health/policy filtering.
-    ///
-    /// `Ok(None)` means no eligible positive-weight route remains. The draw is invoked at most
-    /// once and selection performs no retry or execution-side mutation.
     pub fn select_with<'a, Draw>(
         &self,
         table: &'a RouteTable,
@@ -89,8 +75,6 @@ impl fmt::Display for RouteEligibilityError {
 
 impl std::error::Error for RouteEligibilityError {}
 
-/// Select from one immutable eligibility decision, optionally excluding routes already consumed by
-/// another planning decision. `Ok(None)` means no eligible positive-weight route remains.
 pub(crate) fn select_weighted_with<'a, Exclude, Draw>(
     table: &'a RouteTable,
     eligibility: &RouteEligibility,
@@ -186,9 +170,8 @@ mod tests {
     #[test]
     fn weighting_happens_after_health_policy_filtering() {
         let table = table(7);
-        let eligibility = RouteEligibility::from_predicate(&table, |route| {
-            route.id().as_str() != "unhealthy"
-        });
+        let eligibility =
+            RouteEligibility::from_predicate(&table, |route| route.id().as_str() != "unhealthy");
 
         let first = eligibility
             .select_with(&table, |range| {
