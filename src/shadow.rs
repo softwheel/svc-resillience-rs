@@ -119,7 +119,9 @@ impl fmt::Display for RoutePlanError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::PrimarySelection(error) => write!(f, "primary route selection failed: {error}"),
-            Self::Eligibility(error) => write!(f, "route eligibility is invalid for planning: {error}"),
+            Self::Eligibility(error) => {
+                write!(f, "route eligibility is invalid for planning: {error}")
+            }
             Self::NoEligiblePrimary => f.write_str("route eligibility contains no primary route"),
         }
     }
@@ -291,7 +293,10 @@ mod tests {
     #[test]
     fn sampling_validates_exact_integer_bounds() {
         assert_eq!(ShadowSampling::disabled().parts_per_million(), 0);
-        assert_eq!(ShadowSampling::always().parts_per_million(), SHADOW_PARTS_PER_MILLION);
+        assert_eq!(
+            ShadowSampling::always().parts_per_million(),
+            SHADOW_PARTS_PER_MILLION
+        );
         assert_eq!(
             ShadowSampling::new(SHADOW_PARTS_PER_MILLION + 1).unwrap_err(),
             ShadowSamplingError::PartsPerMillionOutOfRange
@@ -357,9 +362,8 @@ mod tests {
     #[test]
     fn shared_eligibility_filters_primary_and_shadow_before_weighting() {
         let table = table();
-        let eligibility = RouteEligibility::from_predicate(&table, |route| {
-            route.id().as_str() != "shadow-b"
-        });
+        let eligibility =
+            RouteEligibility::from_predicate(&table, |route| route.id().as_str() != "shadow-b");
         let plan = RoutePlanner::plan_eligible_with(
             &table,
             &eligibility,
