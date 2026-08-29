@@ -142,7 +142,7 @@ impl RouteTable {
     }
 
     pub fn select(&self) -> &Route {
-        self.select_with(|range| fastrand::u64(range))
+        self.select_with(fastrand::u64)
             .expect("fastrand draw is constrained to the requested range")
     }
 
