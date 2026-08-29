@@ -2,6 +2,8 @@
 
 Composable resilience primitives for production Rust distributed systems.
 
+**Toolchain:** latest stable Rust (currently Rust 1.98.0), Edition 2024.
+
 This crate grows out of the original **Rusty Circuit Breaker** implementation and the Softwheel
 *Microservice Governance – Resilience Patterns* series. The original implementation modeled the
 core Closed -> Open -> Half-Open state machine. This crate keeps that model, then builds a coherent
