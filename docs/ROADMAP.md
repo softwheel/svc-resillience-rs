@@ -8,18 +8,20 @@
 - [x] Generation-based stale-result protection.
 - [x] Non-blocking bulkhead.
 - [x] Tokio retry convenience behind a feature.
-- [x] CI verification on stable + MSRV.
+- [x] CI verification on latest stable Rust.
 - [x] Property/concurrency testing sufficient to mark Spec 0001 Verified.
 
 ## M1 — dynamic routing and shadow traffic
 
-- Immutable route table snapshots with atomic replacement.
-- Weighted routing with deterministic test hooks.
-- Health/policy filtering before weighted selection.
-- Primary + shadow route plan.
-- Separate shadow deadline, breaker, bulkhead, and retry budget.
-- Shadow cancellation/drop policy and observability hooks.
-- Explicit rule: shadow failure can never change the primary result.
+Spec: `docs/specs/0002-routing-shadowing.md`
+
+- [x] Define snapshot, weighted-selection, failover, shadow-isolation, cancellation, and verification semantics before implementation.
+- [ ] M1.1 immutable route model, validation, generation metadata, and deterministic weighted primary selection.
+- [ ] M1.2 whole-snapshot concurrent publication with no mixed-generation reads.
+- [ ] M1.3 deterministic bounded shadow sampling and primary + shadow route planning.
+- [ ] M1.4 execution-isolation verification: separate breaker/bulkhead/retry/deadline accounting and non-blocking primary completion.
+- [ ] M1.5 explicit bounded route failover distinct from physical-attempt retry.
+- [ ] Verify Spec 0002 and close M1.
 
 ## M2 — production integration
 
@@ -32,8 +34,8 @@
 
 ## M3 — hardening and release
 
-- Loom/model tests for breaker and bulkhead races.
-- Property tests for jitter/backoff bounds and routing weights.
+- Additional model/fuzz testing for routing and state-machine races.
+- Property tests for routing weights and configuration spaces.
 - Fault-injection/chaos integration tests.
 - Criterion benchmarks for hot paths.
 - Semver/API review.
