@@ -268,7 +268,9 @@ mod tests {
         for attempt in 1..=12 {
             let exponent = attempt - 1;
             let expected_cap = Duration::from_millis(
-                10_u64.saturating_mul(2_u64.saturating_pow(exponent)).min(80),
+                10_u64
+                    .saturating_mul(2_u64.saturating_pow(exponent))
+                    .min(80),
             );
             for _ in 0..256 {
                 assert!(backoff.delay_after(attempt) <= expected_cap);
@@ -289,7 +291,9 @@ mod tests {
         for attempt in 1..=12 {
             let exponent = attempt - 1;
             let cap = Duration::from_millis(
-                10_u64.saturating_mul(2_u64.saturating_pow(exponent)).min(80),
+                10_u64
+                    .saturating_mul(2_u64.saturating_pow(exponent))
+                    .min(80),
             );
             let floor = cap / 2;
             for _ in 0..256 {
@@ -320,19 +324,11 @@ mod tests {
             .with_max_elapsed(Duration::from_millis(25));
 
         assert_eq!(
-            policy.next_delay(
-                1,
-                Duration::from_millis(15),
-                RetryDecision::Retry,
-            ),
+            policy.next_delay(1, Duration::from_millis(15), RetryDecision::Retry,),
             Some(Duration::from_millis(10))
         );
         assert_eq!(
-            policy.next_delay(
-                1,
-                Duration::from_millis(16),
-                RetryDecision::Retry,
-            ),
+            policy.next_delay(1, Duration::from_millis(16), RetryDecision::Retry,),
             None
         );
     }
