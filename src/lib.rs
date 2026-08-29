@@ -17,8 +17,8 @@ pub use circuit_breaker::{
     CircuitBreakerRejected, CircuitState,
 };
 pub use failover::{
-    RouteAttempt, RouteAttemptBudget, RouteDecision, RouteFailover, RouteFailoverError, RouteOutcome,
-    RouteStopReason,
+    RouteAttempt, RouteAttemptBudget, RouteDecision, RouteFailover, RouteFailoverError,
+    RouteOutcome, RouteStopReason,
 };
 pub use retry::{
     BackoffConfigError, ExponentialBackoff, Jitter, RetryDecision, RetryPolicy, retry,
