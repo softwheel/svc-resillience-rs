@@ -147,10 +147,10 @@ impl RetryPolicy {
         }
 
         let delay = self.backoff.delay_after(attempt);
-        if let Some(max_elapsed) = self.max_elapsed {
-            if elapsed.saturating_add(delay) > max_elapsed {
-                return None;
-            }
+        if let Some(max_elapsed) = self.max_elapsed
+            && elapsed.saturating_add(delay) > max_elapsed
+        {
+            return None;
         }
 
         Some(delay)
@@ -307,15 +307,21 @@ mod tests {
     #[test]
     fn retry_budget_stops_at_max_attempts() {
         let policy = RetryPolicy::new(NonZeroU32::new(3).unwrap(), deterministic_backoff());
-        assert!(policy
-            .next_delay(1, Duration::ZERO, RetryDecision::Retry)
-            .is_some());
-        assert!(policy
-            .next_delay(2, Duration::ZERO, RetryDecision::Retry)
-            .is_some());
-        assert!(policy
-            .next_delay(3, Duration::ZERO, RetryDecision::Retry)
-            .is_none());
+        assert!(
+            policy
+                .next_delay(1, Duration::ZERO, RetryDecision::Retry)
+                .is_some()
+        );
+        assert!(
+            policy
+                .next_delay(2, Duration::ZERO, RetryDecision::Retry)
+                .is_some()
+        );
+        assert!(
+            policy
+                .next_delay(3, Duration::ZERO, RetryDecision::Retry)
+                .is_none()
+        );
     }
 
     #[test]
@@ -363,8 +369,10 @@ mod tests {
     #[test]
     fn non_retryable_failure_stops_immediately() {
         let policy = RetryPolicy::new(NonZeroU32::new(3).unwrap(), deterministic_backoff());
-        assert!(policy
-            .next_delay(1, Duration::ZERO, RetryDecision::DoNotRetry)
-            .is_none());
+        assert!(
+            policy
+                .next_delay(1, Duration::ZERO, RetryDecision::DoNotRetry)
+                .is_none()
+        );
     }
 }

@@ -14,7 +14,7 @@ pub use circuit_breaker::{
     CircuitBreakerRejected, CircuitState,
 };
 pub use retry::{
-    retry, BackoffConfigError, ExponentialBackoff, Jitter, RetryDecision, RetryPolicy,
+    BackoffConfigError, ExponentialBackoff, Jitter, RetryDecision, RetryPolicy, retry,
 };
 
 #[cfg(feature = "tokio")]

@@ -3,6 +3,13 @@
 Behavior changes are spec changes. Keep the spec, implementation, tests, and public documentation
 in the same pull request whenever possible.
 
+## Rust toolchain policy
+
+Development tracks the latest stable Rust release. `rust-toolchain.toml` follows the `stable`
+channel, and `Cargo.toml` records the current stable compiler floor. Before 1.0, the project may
+raise that floor when stable Rust advances rather than carrying compatibility work for older
+compilers.
+
 ## Local checks
 
 ```bash

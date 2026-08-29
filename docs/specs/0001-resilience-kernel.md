@@ -90,12 +90,16 @@ failover, not a blind retry.
 - `cargo fmt --check`, `cargo clippy --all-targets --all-features -D warnings`, tests, and docs in CI.
 - Benchmarks before optimizing synchronization; correctness is the first release gate.
 
+## Toolchain policy
+
+During pre-1.0 development, the crate tracks the latest stable Rust release rather than preserving
+compatibility with an older compiler floor. The current toolchain is Rust 1.98.0 with Edition 2024.
+A stable-Rust bump must pass the full verification suite before merge.
+
 ## Verification evidence
 
-- Stable CI runs formatting, Clippy with warnings denied, all-feature tests, and rustdoc against the
-  newest dependency versions allowed by the manifest.
-- Rust 1.75 CI resolves the reviewed dependency baseline and runs all-feature tests, making the
-  declared MSRV reproducible.
+- Latest-stable CI runs formatting, Clippy with warnings denied, all-feature tests, and rustdoc
+  against the newest dependency versions allowed by the manifest.
 - Retry/backoff tests cover attempt budgets, elapsed-time boundaries, deterministic exponential
   caps, and full/equal jitter bounds.
 - Circuit-breaker tests cover Closed/Open/HalfOpen transitions, concurrent HalfOpen admission,
@@ -104,12 +108,12 @@ failover, not a blind retry.
   the same CAS reservation/release core used by production.
 - Tokio integration tests cover successful async retries and immediate stop for non-retryable
   failures.
-- Dependency/MSRV review is recorded in
-  `docs/verification/0001-dependency-msrv-review.md`.
+- Toolchain/dependency review is recorded in
+  `docs/verification/0001-toolchain-dependency-review.md`.
 
 ## Exit criteria for Verified
 
-- CI green on stable Rust and MSRV.
+- CI green on the latest stable Rust toolchain.
 - All listed invariants covered by tests.
 - No panics on poisoned mutex recovery paths.
 - Public API docs contain runnable examples.
