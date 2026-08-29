@@ -147,10 +147,10 @@ impl RetryPolicy {
         }
 
         let delay = self.backoff.delay_after(attempt);
-        if let Some(max_elapsed) = self.max_elapsed {
-            if elapsed.saturating_add(delay) > max_elapsed {
-                return None;
-            }
+        if let Some(max_elapsed) = self.max_elapsed
+            && elapsed.saturating_add(delay) > max_elapsed
+        {
+            return None;
         }
 
         Some(delay)
