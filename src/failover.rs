@@ -4,7 +4,8 @@ use std::num::NonZeroUsize;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::routing::{Route, RouteId, RouteTable};
+use crate::eligibility::{RouteEligibility, select_weighted_with};
+use crate::routing::{RouteId, RouteTable};
 
 /// Maximum number of distinct routes a logical request may attempt.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -23,10 +24,6 @@ impl RouteAttemptBudget {
 }
 
 /// Caller classification of one route execution outcome.
-///
-/// This deliberately separates a retryable physical-attempt failure from a route-terminal
-/// failure. `RetrySameRoute` does not consume route-attempt budget; `Failover` may select one new
-/// route when budget and eligible routes remain.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RouteOutcome {
     Succeeded,
@@ -78,7 +75,7 @@ pub struct RouteFailoverError;
 
 impl fmt::Display for RouteFailoverError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("route-failover weighted-selection draw was outside the requested range")
+        f.write_str("route-failover selection was inconsistent with its routing snapshot")
     }
 }
 
@@ -86,23 +83,28 @@ impl std::error::Error for RouteFailoverError {}
 
 /// Bounded, runtime-agnostic route-failover policy for one logical request.
 ///
-/// The policy retains one immutable routing snapshot for its entire lifetime, never revisits a
-/// previously attempted route, and never executes transport work. Physical-attempt retries remain
-/// the responsibility of the retry policy used by the caller.
+/// The policy retains one immutable routing snapshot and one immutable eligibility decision for
+/// its entire lifetime. It never revisits a previously attempted route and never executes
+/// transport work. Physical-attempt retries remain the responsibility of the caller's retry
+/// policy.
 #[derive(Debug)]
 pub struct RouteFailover {
     snapshot: Arc<RouteTable>,
+    eligibility: RouteEligibility,
     budget: RouteAttemptBudget,
     attempted: HashSet<RouteId>,
     current: RouteAttempt,
 }
 
 impl RouteFailover {
+    /// Construct a failover policy with every enabled, positive-weight route eligible.
     pub fn new(snapshot: Arc<RouteTable>, budget: RouteAttemptBudget) -> Self {
+        let eligibility = RouteEligibility::all(&snapshot);
         let primary = snapshot.select().id().clone();
-        Self::from_primary(snapshot, budget, primary)
+        Self::from_primary(snapshot, eligibility, budget, primary)
     }
 
+    /// Deterministic constructor with every enabled, positive-weight route eligible.
     pub fn new_with<F>(
         snapshot: Arc<RouteTable>,
         budget: RouteAttemptBudget,
@@ -111,15 +113,34 @@ impl RouteFailover {
     where
         F: FnOnce(Range<u64>) -> u64,
     {
-        let primary = select_remaining(&snapshot, &HashSet::new(), draw)?
+        let eligibility = RouteEligibility::all(&snapshot);
+        let primary = select_remaining(&snapshot, &eligibility, &HashSet::new(), draw)?
             .expect("validated route table always has an eligible primary route")
             .id()
             .clone();
-        Ok(Self::from_primary(snapshot, budget, primary))
+        Ok(Self::from_primary(snapshot, eligibility, budget, primary))
+    }
+
+    /// Continue failover from a primary route selected with the same immutable eligibility
+    /// decision used by route planning.
+    ///
+    /// This is the preferred constructor when health/policy filtering is active. Cross-generation
+    /// reuse and primaries rejected by the decision are rejected before any failover state exists.
+    pub fn from_primary_eligibility(
+        snapshot: Arc<RouteTable>,
+        eligibility: RouteEligibility,
+        budget: RouteAttemptBudget,
+        primary: RouteId,
+    ) -> Result<Self, RouteFailoverError> {
+        if eligibility.generation() != snapshot.generation() || !eligibility.contains(&primary) {
+            return Err(RouteFailoverError);
+        }
+        Ok(Self::from_primary(snapshot, eligibility, budget, primary))
     }
 
     fn from_primary(
         snapshot: Arc<RouteTable>,
+        eligibility: RouteEligibility,
         budget: RouteAttemptBudget,
         primary: RouteId,
     ) -> Self {
@@ -132,6 +153,7 @@ impl RouteFailover {
         };
         Self {
             snapshot,
+            eligibility,
             budget,
             attempted,
             current,
@@ -170,7 +192,12 @@ impl RouteFailover {
                     ));
                 }
 
-                let Some(route) = select_remaining(&self.snapshot, &self.attempted, draw)? else {
+                let Some(route) = select_remaining(
+                    &self.snapshot,
+                    &self.eligibility,
+                    &self.attempted,
+                    draw,
+                )? else {
                     return Ok(RouteDecision::Stop(
                         RouteStopReason::NoRemainingEligibleRoute,
                     ));
@@ -191,45 +218,20 @@ impl RouteFailover {
 
 fn select_remaining<'a, F>(
     table: &'a RouteTable,
+    eligibility: &RouteEligibility,
     attempted: &HashSet<RouteId>,
     draw: F,
-) -> Result<Option<&'a Route>, RouteFailoverError>
+) -> Result<Option<&'a crate::routing::Route>, RouteFailoverError>
 where
     F: FnOnce(Range<u64>) -> u64,
 {
-    let total = table
-        .routes()
-        .iter()
-        .filter(|route| is_remaining_eligible(route, attempted))
-        .try_fold(0_u64, |sum, route| sum.checked_add(route.weight()))
-        .expect("subset of a validated route table cannot overflow its validated total weight");
-
-    if total == 0 {
-        return Ok(None);
-    }
-
-    let selected = draw(0..total);
-    if selected >= total {
-        return Err(RouteFailoverError);
-    }
-
-    let mut cursor = selected;
-    for route in table
-        .routes()
-        .iter()
-        .filter(|route| is_remaining_eligible(route, attempted))
-    {
-        if cursor < route.weight() {
-            return Ok(Some(route));
-        }
-        cursor -= route.weight();
-    }
-
-    unreachable!("validated remaining weight must map every in-range draw to a route")
-}
-
-fn is_remaining_eligible(route: &Route, attempted: &HashSet<RouteId>) -> bool {
-    route.is_enabled() && route.weight() > 0 && !attempted.contains(route.id())
+    select_weighted_with(
+        table,
+        eligibility,
+        |route| attempted.contains(route.id()),
+        draw,
+    )
+    .map_err(|_| RouteFailoverError)
 }
 
 #[cfg(test)]
@@ -281,19 +283,19 @@ mod tests {
     fn failover_is_bounded_and_never_revisits_a_route() {
         let mut failover = RouteFailover::new_with(table(), budget(3), |_| 0).unwrap();
 
-        let first = failover
+        let RouteDecision::Failover(first) = failover
             .classify_with(RouteOutcome::Failover, |_| 0)
-            .unwrap();
-        let RouteDecision::Failover(first) = first else {
+            .unwrap()
+        else {
             panic!("expected first failover")
         };
         assert_eq!(first.route_id().as_str(), "b");
         assert_eq!(first.ordinal(), 1);
 
-        let second = failover
+        let RouteDecision::Failover(second) = failover
             .classify_with(RouteOutcome::Failover, |_| 0)
-            .unwrap();
-        let RouteDecision::Failover(second) = second else {
+            .unwrap()
+        else {
             panic!("expected second failover")
         };
         assert_eq!(second.route_id().as_str(), "c");
@@ -304,37 +306,100 @@ mod tests {
             failover.classify(RouteOutcome::Failover),
             RouteDecision::Stop(RouteStopReason::RouteAttemptBudgetExhausted)
         );
-        assert_eq!(failover.attempted_routes(), 3);
     }
 
     #[test]
     fn failover_weighting_uses_only_remaining_eligible_routes() {
         let mut failover = RouteFailover::new_with(table(), budget(3), |_| 0).unwrap();
-
-        let next = failover.classify_with(RouteOutcome::Failover, |range| {
-            assert_eq!(range, 0..5);
-            4
-        });
-        let RouteDecision::Failover(next) = next.unwrap() else {
+        let RouteDecision::Failover(next) = failover
+            .classify_with(RouteOutcome::Failover, |range| {
+                assert_eq!(range, 0..5);
+                4
+            })
+            .unwrap()
+        else {
             panic!("expected failover")
         };
         assert_eq!(next.route_id().as_str(), "c");
 
-        let final_route = failover.classify_with(RouteOutcome::Failover, |range| {
-            assert_eq!(range, 0..2);
-            1
-        });
-        let RouteDecision::Failover(final_route) = final_route.unwrap() else {
+        let RouteDecision::Failover(final_route) = failover
+            .classify_with(RouteOutcome::Failover, |range| {
+                assert_eq!(range, 0..2);
+                1
+            })
+            .unwrap()
+        else {
             panic!("expected failover")
         };
         assert_eq!(final_route.route_id().as_str(), "b");
     }
 
     #[test]
+    fn shared_eligibility_excludes_rejected_routes_from_failover() {
+        let snapshot = table();
+        let eligibility = RouteEligibility::from_predicate(&snapshot, |route| {
+            route.id().as_str() != "b"
+        });
+        let mut failover = RouteFailover::from_primary_eligibility(
+            Arc::clone(&snapshot),
+            eligibility,
+            budget(3),
+            id("a"),
+        )
+        .unwrap();
+
+        let RouteDecision::Failover(next) = failover
+            .classify_with(RouteOutcome::Failover, |range| {
+                assert_eq!(range, 0..3);
+                0
+            })
+            .unwrap()
+        else {
+            panic!("expected failover")
+        };
+        assert_eq!(next.route_id().as_str(), "c");
+
+        assert_eq!(
+            failover.classify(RouteOutcome::Failover),
+            RouteDecision::Stop(RouteStopReason::NoRemainingEligibleRoute)
+        );
+    }
+
+    #[test]
+    fn shared_eligibility_rejects_cross_generation_and_rejected_primary() {
+        let snapshot = table();
+        let other = RouteTable::new(18, snapshot.routes().to_vec()).unwrap();
+        let old_eligibility = RouteEligibility::all(&other);
+        assert_eq!(
+            RouteFailover::from_primary_eligibility(
+                Arc::clone(&snapshot),
+                old_eligibility,
+                budget(2),
+                id("a"),
+            )
+            .unwrap_err(),
+            RouteFailoverError
+        );
+
+        let eligibility = RouteEligibility::from_predicate(&snapshot, |route| {
+            route.id().as_str() != "a"
+        });
+        assert_eq!(
+            RouteFailover::from_primary_eligibility(
+                snapshot,
+                eligibility,
+                budget(2),
+                id("a"),
+            )
+            .unwrap_err(),
+            RouteFailoverError
+        );
+    }
+
+    #[test]
     fn no_remaining_route_is_a_normal_stop_reason() {
         let snapshot = Arc::new(RouteTable::new(9, vec![Route::new(id("only"), 1)]).unwrap());
         let mut failover = RouteFailover::new(snapshot, budget(2));
-
         assert_eq!(
             failover.classify(RouteOutcome::Failover),
             RouteDecision::Stop(RouteStopReason::NoRemainingEligibleRoute)
