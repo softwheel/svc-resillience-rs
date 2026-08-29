@@ -142,7 +142,9 @@ impl RoutePlanner {
     pub fn plan(table: &RouteTable, sampling: ShadowSampling) -> RoutePlan {
         let primary = table.select();
         let sampled = sampling.sample();
-        let shadow = sampled.then(|| select_shadow(table, primary, fastrand::u64)).flatten();
+        let shadow = sampled
+            .then(|| select_shadow(table, primary, fastrand::u64))
+            .flatten();
         build_plan(table, primary, sampled, shadow)
     }
 
@@ -258,18 +260,22 @@ mod tests {
     #[test]
     fn zero_and_maximum_sampling_do_not_consume_a_draw() {
         let mut calls = 0;
-        assert!(!ShadowSampling::disabled()
-            .sample_with(|_| {
-                calls += 1;
-                0
-            })
-            .unwrap());
-        assert!(ShadowSampling::always()
-            .sample_with(|_| {
-                calls += 1;
-                0
-            })
-            .unwrap());
+        assert!(
+            !ShadowSampling::disabled()
+                .sample_with(|_| {
+                    calls += 1;
+                    0
+                })
+                .unwrap()
+        );
+        assert!(
+            ShadowSampling::always()
+                .sample_with(|_| {
+                    calls += 1;
+                    0
+                })
+                .unwrap()
+        );
         assert_eq!(calls, 0);
     }
 
@@ -279,7 +285,9 @@ mod tests {
         assert!(sampling.sample_with(|_| 249_999).unwrap());
         assert!(!sampling.sample_with(|_| 250_000).unwrap());
         assert_eq!(
-            sampling.sample_with(|_| SHADOW_PARTS_PER_MILLION).unwrap_err(),
+            sampling
+                .sample_with(|_| SHADOW_PARTS_PER_MILLION)
+                .unwrap_err(),
             ShadowSamplingError::DrawOutOfRange
         );
     }
