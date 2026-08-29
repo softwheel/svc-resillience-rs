@@ -7,6 +7,7 @@
 pub mod bulkhead;
 pub mod circuit_breaker;
 pub mod retry;
+pub mod routing;
 
 pub use bulkhead::{Bulkhead, BulkheadCallError, BulkheadPermit, BulkheadRejected};
 pub use circuit_breaker::{
@@ -16,6 +17,7 @@ pub use circuit_breaker::{
 pub use retry::{
     BackoffConfigError, ExponentialBackoff, Jitter, RetryDecision, RetryPolicy, retry,
 };
+pub use routing::{Route, RouteId, RouteTable, RouteTableError};
 
 #[cfg(feature = "tokio")]
 pub use retry::retry_async;
