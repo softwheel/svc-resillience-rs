@@ -1,6 +1,7 @@
 use std::fmt;
 use std::ops::Range;
 
+use crate::eligibility::{RouteEligibility, RouteEligibilityError, select_weighted_with};
 use crate::routing::{Route, RouteId, RouteTable, RouteTableError};
 
 /// Exact denominator used by [`ShadowSampling`].
@@ -27,10 +28,6 @@ impl fmt::Display for ShadowSamplingError {
 impl std::error::Error for ShadowSamplingError {}
 
 /// Exact integer shadow-sampling policy.
-///
-/// A value of `0` disables sampling and `1_000_000` samples every request. Intermediate values
-/// sample exactly that many slots from a one-million-slot integer space, avoiding floating-point
-/// boundary ambiguity.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct ShadowSampling {
     parts_per_million: u32,
@@ -85,9 +82,6 @@ impl ShadowSampling {
 }
 
 /// Immutable primary/shadow routing decision produced from one routing snapshot.
-///
-/// The plan contains route identity and observability metadata only. It owns no runtime handles,
-/// futures, sockets, breakers, bulkheads, or timers.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RoutePlan {
     generation: u64,
@@ -109,11 +103,6 @@ impl RoutePlan {
         self.shadow.as_ref()
     }
 
-    /// Returns the sampling decision independently of whether a distinct shadow route existed.
-    ///
-    /// `true` with `shadow() == None` means the request was sampled but no eligible distinct
-    /// shadow destination could be selected. That is observable but never a primary-planning
-    /// failure.
     pub fn shadow_sampled(&self) -> bool {
         self.shadow_sampled
     }
@@ -122,12 +111,18 @@ impl RoutePlan {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RoutePlanError {
     PrimarySelection(RouteTableError),
+    Eligibility(RouteEligibilityError),
+    NoEligiblePrimary,
 }
 
 impl fmt::Display for RoutePlanError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::PrimarySelection(error) => write!(f, "primary route selection failed: {error}"),
+            Self::Eligibility(error) => {
+                write!(f, "route eligibility is invalid for planning: {error}")
+            }
+            Self::NoEligiblePrimary => f.write_str("route eligibility contains no primary route"),
         }
     }
 }
@@ -139,6 +134,7 @@ impl std::error::Error for RoutePlanError {}
 pub struct RoutePlanner;
 
 impl RoutePlanner {
+    /// Convenience planner with every enabled, positive-weight route eligible.
     pub fn plan(table: &RouteTable, sampling: ShadowSampling) -> RoutePlan {
         let primary = table.select();
         let sampled = sampling.sample();
@@ -148,11 +144,7 @@ impl RoutePlanner {
         build_plan(table, primary, sampled, shadow)
     }
 
-    /// Deterministic planning hook for exhaustive tests and callers that own randomness.
-    ///
-    /// Primary selection is the only fallible part of planning. An invalid sampling draw degrades
-    /// to `not sampled`; an invalid/missing shadow draw degrades to `shadow = None`. This makes a
-    /// shadow-planning fault incapable of rejecting an otherwise-valid primary plan.
+    /// Deterministic planning hook with every enabled, positive-weight route eligible.
     pub fn plan_with<PrimaryDraw, SampleDraw, ShadowDraw>(
         table: &RouteTable,
         sampling: ShadowSampling,
@@ -172,6 +164,60 @@ impl RoutePlanner {
         let shadow = sampled
             .then(|| select_shadow(table, primary, shadow_draw))
             .flatten();
+        Ok(build_plan(table, primary, sampled, shadow))
+    }
+
+    /// Plan primary and shadow routes from one immutable health/policy decision.
+    ///
+    /// Primary selection fails if the eligibility decision belongs to another generation or leaves
+    /// no primary candidate. Once a primary is valid, sampling/shadow-selection faults remain
+    /// non-propagating and can only degrade to `shadow = None`.
+    pub fn plan_eligible(
+        table: &RouteTable,
+        eligibility: &RouteEligibility,
+        sampling: ShadowSampling,
+    ) -> Result<RoutePlan, RoutePlanError> {
+        Self::plan_eligible_with(
+            table,
+            eligibility,
+            sampling,
+            fastrand::u64,
+            fastrand::u32,
+            fastrand::u64,
+        )
+    }
+
+    /// Deterministic variant of [`RoutePlanner::plan_eligible`].
+    pub fn plan_eligible_with<PrimaryDraw, SampleDraw, ShadowDraw>(
+        table: &RouteTable,
+        eligibility: &RouteEligibility,
+        sampling: ShadowSampling,
+        primary_draw: PrimaryDraw,
+        sample_draw: SampleDraw,
+        shadow_draw: ShadowDraw,
+    ) -> Result<RoutePlan, RoutePlanError>
+    where
+        PrimaryDraw: FnOnce(Range<u64>) -> u64,
+        SampleDraw: FnOnce(Range<u32>) -> u32,
+        ShadowDraw: FnOnce(Range<u64>) -> u64,
+    {
+        let primary = eligibility
+            .select_with(table, primary_draw)
+            .map_err(RoutePlanError::Eligibility)?
+            .ok_or(RoutePlanError::NoEligiblePrimary)?;
+        let sampled = sampling.sample_with(sample_draw).unwrap_or(false);
+        let shadow = if sampled {
+            select_weighted_with(
+                table,
+                eligibility,
+                |route| route.id() == primary.id(),
+                shadow_draw,
+            )
+            .ok()
+            .flatten()
+        } else {
+            None
+        };
         Ok(build_plan(table, primary, sampled, shadow))
     }
 }
@@ -314,6 +360,64 @@ mod tests {
     }
 
     #[test]
+    fn shared_eligibility_filters_primary_and_shadow_before_weighting() {
+        let table = table();
+        let eligibility =
+            RouteEligibility::from_predicate(&table, |route| route.id().as_str() != "shadow-b");
+        let plan = RoutePlanner::plan_eligible_with(
+            &table,
+            &eligibility,
+            ShadowSampling::always(),
+            |range| {
+                assert_eq!(range, 0..7);
+                0
+            },
+            |_| unreachable!(),
+            |range| {
+                assert_eq!(range, 0..5);
+                0
+            },
+        )
+        .unwrap();
+
+        assert_eq!(plan.primary().as_str(), "primary-a");
+        assert_eq!(plan.shadow().unwrap().as_str(), "shadow-c");
+    }
+
+    #[test]
+    fn shared_eligibility_rejects_cross_generation_and_empty_primary_set() {
+        let table = table();
+        let other = RouteTable::new(18, table.routes().to_vec()).unwrap();
+        let other_eligibility = RouteEligibility::all(&other);
+        assert_eq!(
+            RoutePlanner::plan_eligible_with(
+                &table,
+                &other_eligibility,
+                ShadowSampling::disabled(),
+                |_| 0,
+                |_| unreachable!(),
+                |_| unreachable!(),
+            )
+            .unwrap_err(),
+            RoutePlanError::Eligibility(RouteEligibilityError::GenerationMismatch)
+        );
+
+        let empty = RouteEligibility::from_predicate(&table, |_| false);
+        assert_eq!(
+            RoutePlanner::plan_eligible_with(
+                &table,
+                &empty,
+                ShadowSampling::disabled(),
+                |_| unreachable!(),
+                |_| unreachable!(),
+                |_| unreachable!(),
+            )
+            .unwrap_err(),
+            RoutePlanError::NoEligiblePrimary
+        );
+    }
+
+    #[test]
     fn unsampled_plan_never_attempts_shadow_selection() {
         let plan = RoutePlanner::plan_with(
             &table(),
@@ -352,11 +456,10 @@ mod tests {
             &table(),
             ShadowSampling::always(),
             |_| 0,
-            |_| unreachable!("always sampling must not draw"),
+            |_| unreachable!(),
             |range| range.end,
         )
         .unwrap();
-
         assert_eq!(plan.primary().as_str(), "primary-a");
         assert!(plan.shadow_sampled());
         assert!(plan.shadow().is_none());
@@ -372,7 +475,6 @@ mod tests {
             |_| panic!("invalid sampling draw must not dispatch shadow selection"),
         )
         .unwrap();
-
         assert_eq!(plan.primary().as_str(), "primary-a");
         assert!(!plan.shadow_sampled());
         assert!(plan.shadow().is_none());
@@ -388,7 +490,6 @@ mod tests {
             |_| unreachable!(),
         )
         .unwrap_err();
-
         assert_eq!(
             error,
             RoutePlanError::PrimarySelection(RouteTableError::DrawOutOfRange)
