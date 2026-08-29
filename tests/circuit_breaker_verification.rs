@@ -6,10 +6,7 @@ use softwheel_resilience::{
     CircuitBreaker, CircuitBreakerConfig, CircuitBreakerRejected, CircuitState,
 };
 
-fn breaker(
-    failure_threshold: u32,
-    half_open_success_threshold: u32,
-) -> CircuitBreaker {
+fn breaker(failure_threshold: u32, half_open_success_threshold: u32) -> CircuitBreaker {
     CircuitBreaker::new(
         CircuitBreakerConfig::new(
             failure_threshold,
@@ -111,7 +108,10 @@ fn half_open_concurrent_admission_never_exceeds_probe_limit() {
 
     start.wait();
     let outcomes: Vec<bool> = (0..WORKERS).map(|_| rx.recv().unwrap()).collect();
-    assert_eq!(outcomes.iter().filter(|&&admitted| admitted).count(), PROBE_LIMIT);
+    assert_eq!(
+        outcomes.iter().filter(|&&admitted| admitted).count(),
+        PROBE_LIMIT
+    );
 
     let (lock, cvar) = &*release;
     *lock.lock().unwrap() = true;
