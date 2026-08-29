@@ -190,11 +190,7 @@ fn build_plan(
     }
 }
 
-fn select_shadow<'a, F>(
-    table: &'a RouteTable,
-    primary: &Route,
-    draw: F,
-) -> Option<&'a Route>
+fn select_shadow<'a, F>(table: &'a RouteTable, primary: &Route, draw: F) -> Option<&'a Route>
 where
     F: FnOnce(Range<u64>) -> u64,
 {
