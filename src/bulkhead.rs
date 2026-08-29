@@ -3,6 +3,64 @@ use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+trait AtomicCounter {
+    fn load(&self, order: Ordering) -> usize;
+
+    fn compare_exchange_weak(
+        &self,
+        current: usize,
+        new: usize,
+        success: Ordering,
+        failure: Ordering,
+    ) -> Result<usize, usize>;
+
+    fn fetch_sub(&self, value: usize, order: Ordering) -> usize;
+}
+
+impl AtomicCounter for AtomicUsize {
+    fn load(&self, order: Ordering) -> usize {
+        AtomicUsize::load(self, order)
+    }
+
+    fn compare_exchange_weak(
+        &self,
+        current: usize,
+        new: usize,
+        success: Ordering,
+        failure: Ordering,
+    ) -> Result<usize, usize> {
+        AtomicUsize::compare_exchange_weak(self, current, new, success, failure)
+    }
+
+    fn fetch_sub(&self, value: usize, order: Ordering) -> usize {
+        AtomicUsize::fetch_sub(self, value, order)
+    }
+}
+
+fn try_reserve<C: AtomicCounter>(in_flight: &C, capacity: usize) -> bool {
+    let mut current = in_flight.load(Ordering::Acquire);
+    loop {
+        if current >= capacity {
+            return false;
+        }
+
+        match in_flight.compare_exchange_weak(
+            current,
+            current + 1,
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        ) {
+            Ok(_) => return true,
+            Err(observed) => current = observed,
+        }
+    }
+}
+
+fn release_slot<C: AtomicCounter>(in_flight: &C) {
+    let previous = in_flight.fetch_sub(1, Ordering::AcqRel);
+    debug_assert!(previous > 0, "bulkhead permit released without a held slot");
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct BulkheadRejected;
 
@@ -70,27 +128,14 @@ impl Bulkhead {
     }
 
     pub fn try_acquire(&self) -> Result<BulkheadPermit, BulkheadRejected> {
-        let mut current = self.inner.in_flight.load(Ordering::Acquire);
-        loop {
-            if current >= self.inner.capacity {
-                return Err(BulkheadRejected);
-            }
-
-            match self.inner.in_flight.compare_exchange_weak(
-                current,
-                current + 1,
-                Ordering::AcqRel,
-                Ordering::Acquire,
-            ) {
-                Ok(_) => {
-                    return Ok(BulkheadPermit {
-                        inner: Arc::clone(&self.inner),
-                        released: false,
-                    })
-                }
-                Err(observed) => current = observed,
-            }
+        if !try_reserve(&self.inner.in_flight, self.inner.capacity) {
+            return Err(BulkheadRejected);
         }
+
+        Ok(BulkheadPermit {
+            inner: Arc::clone(&self.inner),
+            released: false,
+        })
     }
 
     pub fn call<T, E, Operation>(&self, operation: Operation) -> Result<T, BulkheadCallError<E>>
@@ -115,7 +160,7 @@ impl BulkheadPermit {
 
     fn release_inner(&mut self) {
         if !self.released {
-            self.inner.in_flight.fetch_sub(1, Ordering::AcqRel);
+            release_slot(&self.inner.in_flight);
             self.released = true;
         }
     }
@@ -185,5 +230,62 @@ mod tests {
         assert!(peak.load(Ordering::Acquire) <= CAPACITY);
         assert_eq!(bulkhead.in_flight(), 0);
         assert_eq!(bulkhead.available(), CAPACITY);
+    }
+
+    impl AtomicCounter for loom::sync::atomic::AtomicUsize {
+        fn load(&self, order: Ordering) -> usize {
+            loom::sync::atomic::AtomicUsize::load(self, order)
+        }
+
+        fn compare_exchange_weak(
+            &self,
+            current: usize,
+            new: usize,
+            success: Ordering,
+            failure: Ordering,
+        ) -> Result<usize, usize> {
+            loom::sync::atomic::AtomicUsize::compare_exchange_weak(
+                self, current, new, success, failure,
+            )
+        }
+
+        fn fetch_sub(&self, value: usize, order: Ordering) -> usize {
+            loom::sync::atomic::AtomicUsize::fetch_sub(self, value, order)
+        }
+    }
+
+    #[test]
+    #[ignore = "exhaustive Loom model; run in the dedicated CI job"]
+    fn loom_models_reservation_and_release() {
+        loom::model(|| {
+            use loom::sync::atomic::AtomicUsize as LoomAtomicUsize;
+            use loom::sync::Arc as LoomArc;
+            use loom::thread;
+
+            let in_flight = LoomArc::new(LoomAtomicUsize::new(0));
+            let first = LoomArc::clone(&in_flight);
+            let second = LoomArc::clone(&in_flight);
+
+            let first_handle = thread::spawn(move || {
+                if try_reserve(&*first, 1) {
+                    assert!(first.load(Ordering::Acquire) <= 1);
+                    thread::yield_now();
+                    release_slot(&*first);
+                }
+            });
+
+            let second_handle = thread::spawn(move || {
+                if try_reserve(&*second, 1) {
+                    assert!(second.load(Ordering::Acquire) <= 1);
+                    thread::yield_now();
+                    release_slot(&*second);
+                }
+            });
+
+            first_handle.join().unwrap();
+            second_handle.join().unwrap();
+
+            assert_eq!(in_flight.load(Ordering::Acquire), 0);
+        });
     }
 }
