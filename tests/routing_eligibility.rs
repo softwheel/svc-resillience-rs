@@ -2,8 +2,8 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use softwheel_resilience::{
-    Route, RouteAttemptBudget, RouteDecision, RouteEligibility, RouteFailover, RouteId, RouteOutcome,
-    RoutePlanner, RouteTable, ShadowSampling,
+    Route, RouteAttemptBudget, RouteDecision, RouteEligibility, RouteFailover, RouteId,
+    RouteOutcome, RoutePlanner, RouteTable, ShadowSampling,
 };
 
 fn id(value: &str) -> RouteId {
@@ -24,9 +24,8 @@ fn one_eligibility_decision_governs_primary_shadow_and_failover() {
         )
         .unwrap(),
     );
-    let eligibility = RouteEligibility::from_predicate(&snapshot, |route| {
-        route.id().as_str() != "rejected"
-    });
+    let eligibility =
+        RouteEligibility::from_predicate(&snapshot, |route| route.id().as_str() != "rejected");
 
     let plan = RoutePlanner::plan_eligible_with(
         &snapshot,
