@@ -8,6 +8,7 @@ pub mod bulkhead;
 pub mod circuit_breaker;
 pub mod retry;
 pub mod routing;
+pub mod shadow;
 
 pub use bulkhead::{Bulkhead, BulkheadCallError, BulkheadPermit, BulkheadRejected};
 pub use circuit_breaker::{
@@ -18,6 +19,10 @@ pub use retry::{
     BackoffConfigError, ExponentialBackoff, Jitter, RetryDecision, RetryPolicy, retry,
 };
 pub use routing::{Route, RouteId, RouteTable, RouteTableError, RouteTableStore};
+pub use shadow::{
+    RoutePlan, RoutePlanError, RoutePlanner, SHADOW_PARTS_PER_MILLION, ShadowSampling,
+    ShadowSamplingError,
+};
 
 #[cfg(feature = "tokio")]
 pub use retry::retry_async;
