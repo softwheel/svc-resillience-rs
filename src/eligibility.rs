@@ -52,6 +52,21 @@ impl RouteEligibility {
     pub fn is_empty(&self) -> bool {
         self.eligible.is_empty()
     }
+
+    /// Deterministically select one eligible route after health/policy filtering.
+    ///
+    /// `Ok(None)` means no eligible positive-weight route remains. The draw is invoked at most
+    /// once and selection performs no retry or execution-side mutation.
+    pub fn select_with<'a, Draw>(
+        &self,
+        table: &'a RouteTable,
+        draw: Draw,
+    ) -> Result<Option<&'a Route>, RouteEligibilityError>
+    where
+        Draw: FnOnce(Range<u64>) -> u64,
+    {
+        select_weighted_with(table, self, |_| false, draw)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -153,7 +168,14 @@ mod tests {
             route.id().as_str().starts_with("healthy")
         });
 
-        assert_eq!(visited, ["healthy-a", "unhealthy", "healthy-b"]);
+        assert_eq!(
+            visited,
+            vec![
+                "healthy-a".to_owned(),
+                "unhealthy".to_owned(),
+                "healthy-b".to_owned()
+            ]
+        );
         assert!(eligibility.contains(&id("healthy-a")));
         assert!(eligibility.contains(&id("healthy-b")));
         assert!(!eligibility.contains(&id("unhealthy")));
@@ -168,15 +190,14 @@ mod tests {
             route.id().as_str() != "unhealthy"
         });
 
-        let first = select_weighted_with(&table, &eligibility, |_| false, |range| {
-            assert_eq!(range, 0..5);
-            0
-        })
-        .unwrap()
-        .unwrap();
-        let last = select_weighted_with(&table, &eligibility, |_| false, |_| 4)
+        let first = eligibility
+            .select_with(&table, |range| {
+                assert_eq!(range, 0..5);
+                0
+            })
             .unwrap()
             .unwrap();
+        let last = eligibility.select_with(&table, |_| 4).unwrap().unwrap();
 
         assert_eq!(first.id().as_str(), "healthy-a");
         assert_eq!(last.id().as_str(), "healthy-b");
@@ -188,7 +209,8 @@ mod tests {
         let eligibility = RouteEligibility::from_predicate(&table, |_| false);
         assert!(eligibility.is_empty());
         assert!(
-            select_weighted_with(&table, &eligibility, |_| false, |_| unreachable!())
+            eligibility
+                .select_with(&table, |_| unreachable!())
                 .unwrap()
                 .is_none()
         );
@@ -201,7 +223,7 @@ mod tests {
         let eligibility = RouteEligibility::all(&old);
 
         assert_eq!(
-            select_weighted_with(&new, &eligibility, |_| false, |_| 0).unwrap_err(),
+            eligibility.select_with(&new, |_| 0).unwrap_err(),
             RouteEligibilityError::GenerationMismatch
         );
     }
