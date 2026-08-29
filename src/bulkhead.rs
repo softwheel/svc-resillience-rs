@@ -130,6 +130,7 @@ impl Drop for BulkheadPermit {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Barrier;
 
     #[test]
     fn rejects_above_capacity_and_recovers_on_drop() {
@@ -138,5 +139,51 @@ mod tests {
         assert_eq!(bulkhead.try_acquire().unwrap_err(), BulkheadRejected);
         drop(permit);
         assert!(bulkhead.try_acquire().is_ok());
+    }
+
+    #[test]
+    fn concurrent_admission_never_exceeds_capacity() {
+        const CAPACITY: usize = 4;
+        const THREADS: usize = 32;
+        const ITERATIONS: usize = 500;
+
+        let bulkhead = Bulkhead::new(NonZeroUsize::new(CAPACITY).unwrap());
+        let start = Arc::new(Barrier::new(THREADS));
+        let peak = Arc::new(AtomicUsize::new(0));
+
+        let handles: Vec<_> = (0..THREADS)
+            .map(|_| {
+                let bulkhead = bulkhead.clone();
+                let start = Arc::clone(&start);
+                let peak = Arc::clone(&peak);
+
+                std::thread::spawn(move || {
+                    start.wait();
+
+                    for _ in 0..ITERATIONS {
+                        if let Ok(permit) = bulkhead.try_acquire() {
+                            let observed = bulkhead.in_flight();
+                            assert!(
+                                observed <= CAPACITY,
+                                "bulkhead admitted {observed} calls with capacity {CAPACITY}"
+                            );
+                            peak.fetch_max(observed, Ordering::AcqRel);
+                            std::thread::yield_now();
+                            drop(permit);
+                        } else {
+                            std::thread::yield_now();
+                        }
+                    }
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        assert!(peak.load(Ordering::Acquire) <= CAPACITY);
+        assert_eq!(bulkhead.in_flight(), 0);
+        assert_eq!(bulkhead.available(), CAPACITY);
     }
 }
