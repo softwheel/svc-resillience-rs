@@ -1,7 +1,7 @@
 use std::fmt;
 use std::num::NonZeroUsize;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 trait AtomicCounter {
     fn load(&self, order: Ordering) -> usize;
@@ -258,8 +258,8 @@ mod tests {
     #[ignore = "exhaustive Loom model; run in the dedicated CI job"]
     fn loom_models_reservation_and_release() {
         loom::model(|| {
-            use loom::sync::atomic::AtomicUsize as LoomAtomicUsize;
             use loom::sync::Arc as LoomArc;
+            use loom::sync::atomic::AtomicUsize as LoomAtomicUsize;
             use loom::thread;
 
             let in_flight = LoomArc::new(LoomAtomicUsize::new(0));
