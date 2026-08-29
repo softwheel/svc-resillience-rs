@@ -8,8 +8,8 @@
 - [x] Generation-based stale-result protection.
 - [x] Non-blocking bulkhead.
 - [x] Tokio retry convenience behind a feature.
-- [ ] CI verification on stable + MSRV.
-- [ ] Property/concurrency testing sufficient to mark Spec 0001 Verified.
+- [x] CI verification on stable + MSRV.
+- [x] Property/concurrency testing sufficient to mark Spec 0001 Verified.
 
 ## M1 — dynamic routing and shadow traffic
 

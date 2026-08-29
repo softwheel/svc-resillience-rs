@@ -398,4 +398,20 @@ mod tests {
         breaker.try_acquire().unwrap().success();
         assert_eq!(breaker.state(), CircuitState::Closed);
     }
+
+    #[test]
+    fn poisoned_mutex_is_recovered_without_panicking_callers() {
+        let breaker = breaker();
+        let poisoner = breaker.clone();
+
+        let handle = std::thread::spawn(move || {
+            let _guard = poisoner.inner.shared.lock().unwrap();
+            panic!("intentional mutex poisoning for verification");
+        });
+        assert!(handle.join().is_err());
+
+        assert_eq!(breaker.state(), CircuitState::Closed);
+        breaker.try_acquire().unwrap().success();
+        assert_eq!(breaker.state(), CircuitState::Closed);
+    }
 }

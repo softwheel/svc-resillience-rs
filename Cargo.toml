@@ -14,9 +14,13 @@ default = []
 tokio = ["dep:tokio"]
 
 [dependencies]
-fastrand = "2"
-tokio = { version = "1", features = ["time"], optional = true }
+# Reviewed baseline: 2.5.0 (MSRV 1.63). Caret compatibility keeps downstream resolution flexible.
+fastrand = "2.5"
+# Reviewed baseline: 1.51.0 LTS (MSRV 1.71). Do not pin a Tokio minor in a library: downstream
+# applications should be able to unify on a compatible Tokio 1.x runtime.
+tokio = { version = "1.51", features = ["time"], optional = true }
 
 [dev-dependencies]
-loom = "0.7.2"
-tokio = { version = "1", features = ["macros", "rt", "time"] }
+# Exact model-checker version keeps concurrency verification reproducible.
+loom = "=0.7.2"
+tokio = { version = "1.51", features = ["macros", "rt", "time"] }

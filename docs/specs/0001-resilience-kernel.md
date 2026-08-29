@@ -1,6 +1,8 @@
 # Spec 0001: Resilience Kernel
 
-Status: **Implemented / verification pending**
+Status: **Verified**
+
+Verified: 2026-08-29
 
 ## Problem
 
@@ -88,6 +90,23 @@ failover, not a blind retry.
 - `cargo fmt --check`, `cargo clippy --all-targets --all-features -D warnings`, tests, and docs in CI.
 - Benchmarks before optimizing synchronization; correctness is the first release gate.
 
+## Verification evidence
+
+- Stable CI runs formatting, Clippy with warnings denied, all-feature tests, and rustdoc against the
+  newest dependency versions allowed by the manifest.
+- Rust 1.75 CI resolves the reviewed dependency baseline and runs all-feature tests, making the
+  declared MSRV reproducible.
+- Retry/backoff tests cover attempt budgets, elapsed-time boundaries, deterministic exponential
+  caps, and full/equal jitter bounds.
+- Circuit-breaker tests cover Closed/Open/HalfOpen transitions, concurrent HalfOpen admission,
+  stale-generation results, dropped permits, and poisoned-mutex recovery.
+- The lock-free bulkhead has both high-contention stress coverage and an exhaustive Loom model over
+  the same CAS reservation/release core used by production.
+- Tokio integration tests cover successful async retries and immediate stop for non-retryable
+  failures.
+- Dependency/MSRV review is recorded in
+  `docs/verification/0001-dependency-msrv-review.md`.
+
 ## Exit criteria for Verified
 
 - CI green on stable Rust and MSRV.
@@ -96,3 +115,6 @@ failover, not a blind retry.
 - Public API docs contain runnable examples.
 - Miri/loom or equivalent concurrency validation added for the state machine.
 - Routing/shadowing behavior is covered by a separate spec before implementation.
+
+All exit criteria above are satisfied for the M0 kernel. Routing and shadowing remain explicitly
+out of scope until Spec 0002 is written and accepted.
