@@ -19,7 +19,7 @@ resilience layer around it.
 - **Compose without amplification.** Shadow traffic must not consume primary retry budgets or trip the primary circuit breaker; routing and mirroring are built on top of the same policy kernel.
 - **No unsafe code.** The crate forbids `unsafe`.
 
-## Implemented in v0 foundation
+## Implemented foundation
 
 | Primitive | Status | Key behavior |
 | --- | --- | --- |
@@ -28,8 +28,8 @@ resilience layer around it.
 | Jitter | Implemented | full/equal/none; full is default |
 | Circuit breaker | Implemented | Closed/Open/HalfOpen, bounded probes, stale-result protection |
 | Bulkhead | Implemented | non-blocking RAII concurrency permits |
-| Dynamic routing | Specified next | immutable routing snapshots + atomic replacement |
-| Traffic shadowing | Specified next | isolated budget, never changes primary result |
+| Dynamic routing | Implemented | immutable snapshots, atomic replacement, eligibility filtering, bounded failover |
+| Traffic shadowing | Implemented | deterministic sampling, isolated budgets, observable non-propagating outcomes |
 
 ## Retry example
 
@@ -78,6 +78,81 @@ assert_eq!(calls, 2);
 The classifier is deliberately application-owned. A resilience library cannot safely assume that
 an arbitrary error is retryable; retrying non-idempotent operations or permanent failures can
 amplify an incident.
+
+## Routing and shadowing example
+
+The M1 APIs keep one immutable routing generation and one health/policy eligibility decision for a
+logical request. Shadow planning is diagnostic only and cannot replace the primary result.
+
+```rust
+use std::num::NonZeroUsize;
+use std::sync::Arc;
+use std::time::Duration;
+use softwheel_resilience::{
+    Route, RouteAttemptBudget, RouteDecision, RouteEligibility, RouteFailover, RouteId,
+    RouteOutcome, RoutePlanner, RouteTable, RouteTableStore, ShadowExecutionPolicy,
+    ShadowObservation, ShadowOutcome, ShadowSampling,
+};
+
+let table = RouteTable::new(
+    7,
+    vec![
+        Route::new(RouteId::new("primary-a").unwrap(), 3),
+        Route::new(RouteId::new("primary-b").unwrap(), 2),
+        Route::new(RouteId::new("draining").unwrap(), 100),
+    ],
+)
+.unwrap();
+let store = RouteTableStore::new(table);
+let snapshot = store.snapshot();
+
+let eligibility = RouteEligibility::from_predicate(&snapshot, |route| {
+    route.id().as_str() != "draining"
+});
+
+let plan = RoutePlanner::plan_eligible_with(
+    &snapshot,
+    &eligibility,
+    ShadowSampling::always(),
+    |_| 0,
+    |_| unreachable!(),
+    |_| 0,
+)
+.unwrap();
+assert_eq!(plan.primary().as_str(), "primary-a");
+assert_eq!(plan.shadow().unwrap().as_str(), "primary-b");
+assert_eq!(plan.generation(), 7);
+
+let observation = ShadowObservation::from_plan(&plan).unwrap();
+assert_eq!(observation.route_id().as_str(), "primary-b");
+let shadow_outcome: ShadowOutcome<&str> = ShadowOutcome::Failed("diagnostic failure");
+assert_eq!(shadow_outcome.error(), Some(&"diagnostic failure"));
+
+let shadow_policy = ShadowExecutionPolicy::new(Duration::from_millis(50)).unwrap();
+assert!(!shadow_policy.retries_enabled());
+assert_eq!(
+    shadow_policy.effective_deadline(Duration::from_millis(20)),
+    Duration::from_millis(20)
+);
+
+let budget = RouteAttemptBudget::new(NonZeroUsize::new(2).unwrap());
+let mut failover = RouteFailover::from_primary_eligibility(
+    Arc::clone(&snapshot),
+    eligibility,
+    budget,
+    plan.primary().clone(),
+)
+.unwrap();
+
+let decision = failover.classify_with(RouteOutcome::Failover, |_| 0).unwrap();
+match decision {
+    RouteDecision::Failover(next) => {
+        assert_eq!(next.ordinal(), 1);
+        assert_eq!(next.route_id().as_str(), "primary-b");
+    }
+    other => panic!("unexpected decision: {other:?}"),
+}
+```
 
 ## Circuit-breaker semantics
 
