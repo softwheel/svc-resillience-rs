@@ -1,6 +1,6 @@
 # Spec 0002: Dynamic Routing and Isolated Traffic Shadowing
 
-Status: **Proposed**
+Status: **Verified**
 
 ## Problem
 
@@ -245,3 +245,11 @@ No built-in API should encourage unbounded/high-cardinality labels beyond caller
 - primary latency is not coupled to shadow completion;
 - public APIs have runnable rustdoc examples;
 - latest stable Rust CI is green.
+
+## Verification record
+
+Verified on 2026-08-30 after M1.1 through M1.6c3 landed in PRs #13 through #22.
+
+The verification evidence includes deterministic weighted-selection and sampling tests, whole-snapshot concurrency tests, bounded route-failover tests, immutable per-generation eligibility tests, shadow breaker/bulkhead isolation tests, primary-latency isolation tests, bounded shadow retry/deadline semantics, observable non-propagating shadow outcomes, and runnable public rustdoc examples.
+
+The complete CI gate passed on Rust 1.98.0: `cargo fmt --check`, Clippy with `-D warnings`, all-feature tests, rustdoc tests, and Loom. Rust 1.98.0 is the latest stable Rust release at verification time.
