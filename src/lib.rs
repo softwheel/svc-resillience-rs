@@ -60,6 +60,4 @@ pub use retry::retry_async;
 #[cfg(feature = "tokio")]
 pub use tokio_runtime::{TokioExecutionStop, TokioRequestBudget};
 #[cfg(feature = "tower")]
-pub use tower_adapter::{
-    TowerRequestFactory, TowerRetryError, TowerRetryLayer, TowerRetryService,
-};
+pub use tower_adapter::{TowerRequestFactory, TowerRetryError, TowerRetryLayer, TowerRetryService};
