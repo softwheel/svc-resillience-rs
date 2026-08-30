@@ -69,7 +69,7 @@ impl<'a> ShadowObservation<'a> {
     /// selected.
     ///
     /// ```
-    /// use svc_resilience::{
+    /// use softwheel_resilience::{
     ///     Route, RouteId, RoutePlanner, RouteTable, ShadowObservation, ShadowSampling,
     /// };
     ///
