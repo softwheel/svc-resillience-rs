@@ -17,7 +17,7 @@ tokio = ["dep:tokio"]
 # Keep dependency requirements broad enough for downstream applications to unify compatible
 # versions while developing the crate itself on the latest stable Rust toolchain.
 fastrand = "2.5"
-tokio = { version = "1.51", features = ["time"], optional = true }
+tokio = { version = "1.51", features = ["macros", "time"], optional = true }
 
 [dev-dependencies]
 # Exact model-checker version keeps concurrency verification reproducible.
