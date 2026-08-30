@@ -17,6 +17,8 @@ pub mod routing;
 pub mod shadow;
 pub mod shadow_outcome;
 pub mod shadow_policy;
+#[cfg(feature = "tokio")]
+pub mod tokio_runtime;
 
 pub use bulkhead::{Bulkhead, BulkheadCallError, BulkheadPermit, BulkheadRejected};
 pub use circuit_breaker::{
@@ -53,3 +55,5 @@ pub use shadow_policy::{ShadowExecutionPolicy, ShadowPolicyError};
 
 #[cfg(feature = "tokio")]
 pub use retry::retry_async;
+#[cfg(feature = "tokio")]
+pub use tokio_runtime::{TokioExecutionStop, TokioRequestBudget};
