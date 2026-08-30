@@ -19,6 +19,8 @@ pub mod shadow_outcome;
 pub mod shadow_policy;
 #[cfg(feature = "tokio")]
 pub mod tokio_runtime;
+#[cfg(feature = "tower")]
+pub mod tower_adapter;
 
 pub use bulkhead::{Bulkhead, BulkheadCallError, BulkheadPermit, BulkheadRejected};
 pub use circuit_breaker::{
@@ -57,3 +59,7 @@ pub use shadow_policy::{ShadowExecutionPolicy, ShadowPolicyError};
 pub use retry::retry_async;
 #[cfg(feature = "tokio")]
 pub use tokio_runtime::{TokioExecutionStop, TokioRequestBudget};
+#[cfg(feature = "tower")]
+pub use tower_adapter::{
+    TowerRequestFactory, TowerRetryError, TowerRetryLayer, TowerRetryService,
+};
