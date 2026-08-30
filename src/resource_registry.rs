@@ -315,9 +315,10 @@ mod tests {
             .map(|thread| thread.join().unwrap())
             .collect();
         let first = &resources[0];
-        assert!(resources
+        let all_shared = resources
             .iter()
-            .all(|resources| Arc::ptr_eq(first, resources)));
+            .all(|resources| Arc::ptr_eq(first, resources));
+        assert!(all_shared);
         assert_eq!(registry.len(), 1);
     }
 }
