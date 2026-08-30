@@ -11,6 +11,7 @@ pub mod failover;
 pub mod retry;
 pub mod routing;
 pub mod shadow;
+pub mod shadow_outcome;
 pub mod shadow_policy;
 
 pub use bulkhead::{Bulkhead, BulkheadCallError, BulkheadPermit, BulkheadRejected};
@@ -31,6 +32,7 @@ pub use shadow::{
     RoutePlan, RoutePlanError, RoutePlanner, SHADOW_PARTS_PER_MILLION, ShadowSampling,
     ShadowSamplingError,
 };
+pub use shadow_outcome::{ShadowObservation, ShadowOutcome};
 pub use shadow_policy::{ShadowExecutionPolicy, ShadowPolicyError};
 
 #[cfg(feature = "tokio")]
