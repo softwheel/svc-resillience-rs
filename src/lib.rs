@@ -9,6 +9,7 @@ pub mod circuit_breaker;
 pub mod deadline;
 pub mod eligibility;
 pub mod failover;
+pub mod resource_registry;
 pub mod retry;
 pub mod retry_budget;
 pub mod routing;
@@ -26,6 +27,10 @@ pub use eligibility::{RouteEligibility, RouteEligibilityError};
 pub use failover::{
     RouteAttempt, RouteAttemptBudget, RouteDecision, RouteFailover, RouteFailoverError,
     RouteOutcome, RouteStopReason,
+};
+pub use resource_registry::{
+    PrimaryRouteResources, RouteResourcePolicy, RouteResourceRegistry, RouteResources,
+    ShadowRouteResources,
 };
 pub use retry::{
     BackoffConfigError, ExponentialBackoff, Jitter, RetryDecision, RetryPolicy, retry,
