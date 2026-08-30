@@ -163,11 +163,7 @@ mod tests {
             Some(Duration::from_millis(10))
         );
         assert_eq!(
-            policy.next_retry_delay(
-                2,
-                Duration::from_millis(10),
-                RetryDecision::Retry,
-            ),
+            policy.next_retry_delay(2, Duration::from_millis(10), RetryDecision::Retry,),
             None
         );
         assert_eq!(
