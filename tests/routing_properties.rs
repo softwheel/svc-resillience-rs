@@ -62,7 +62,11 @@ fn bounded_weighted_selection_partitions_every_valid_draw_exactly() {
                     }
 
                     for (index, route) in table.routes().iter().enumerate() {
-                        let expected = if route.is_enabled() { route.weight() } else { 0 };
+                        let expected = if route.is_enabled() {
+                            route.weight()
+                        } else {
+                            0
+                        };
                         assert_eq!(selected_counts[index], expected);
                     }
                 }
