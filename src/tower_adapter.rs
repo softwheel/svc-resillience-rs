@@ -108,8 +108,7 @@ where
 /// let mut service = layer.layer(Echo);
 /// let budget = TokioRequestBudget::start(LogicalRequestBudget::bounded(Duration::from_secs(1)));
 /// let request = TowerRequestFactory::new(|| 7, budget, Duration::from_millis(50));
-/// let value = poll_fn(|cx| service.poll_ready(cx)).await.unwrap();
-/// let _ = value;
+/// std::future::poll_fn(|cx| service.poll_ready(cx)).await.unwrap();
 /// assert_eq!(service.call(request).await.unwrap(), 7);
 /// # }
 /// ```
@@ -211,12 +210,16 @@ where
                         attempt += 1;
 
                         let readiness = poll_fn(|cx| inner.poll_ready(cx));
-                        request
-                            .budget
-                            .timeout(Duration::MAX, readiness)
-                            .await
-                            .map_err(TowerRetryError::Runtime)?
-                            .map_err(TowerRetryError::Readiness)?;
+                        if let Some(remaining) = request.budget.remaining() {
+                            request
+                                .budget
+                                .timeout(remaining, readiness)
+                                .await
+                                .map_err(TowerRetryError::Runtime)?
+                                .map_err(TowerRetryError::Readiness)?;
+                        } else {
+                            readiness.await.map_err(TowerRetryError::Readiness)?;
+                        }
                     }
                 }
             }
