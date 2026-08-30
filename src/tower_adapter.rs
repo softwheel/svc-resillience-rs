@@ -1,5 +1,5 @@
 use std::fmt;
-use std::future::{poll_fn, Future};
+use std::future::{Future, poll_fn};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
@@ -60,11 +60,7 @@ impl<E: fmt::Display> fmt::Display for TowerRetryError<E> {
     }
 }
 
-impl<E> std::error::Error for TowerRetryError<E>
-where
-    E: std::error::Error + 'static,
-{
-}
+impl<E> std::error::Error for TowerRetryError<E> where E: std::error::Error + 'static {}
 
 /// Optional Tower layer for explicit, bounded physical retries.
 ///
@@ -232,8 +228,8 @@ mod tests {
     use super::*;
     use crate::{ExponentialBackoff, Jitter, LogicalRequestBudget};
     use std::num::NonZeroU32;
-    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[derive(Clone)]
     struct TestService {
@@ -328,7 +324,10 @@ mod tests {
             ))
             .await;
 
-        assert!(matches!(result, Err(TowerRetryError::Readiness("not ready"))));
+        assert!(matches!(
+            result,
+            Err(TowerRetryError::Readiness("not ready"))
+        ));
     }
 
     #[tokio::test]
