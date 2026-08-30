@@ -174,10 +174,7 @@ mod tests {
             budget.try_acquire_retry(),
             RetryBudgetDecision::Admitted { remaining: 0 }
         );
-        assert_eq!(
-            budget.try_acquire_retry(),
-            RetryBudgetDecision::Suppressed
-        );
+        assert_eq!(budget.try_acquire_retry(), RetryBudgetDecision::Suppressed);
     }
 
     #[test]
