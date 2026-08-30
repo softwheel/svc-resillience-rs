@@ -51,7 +51,8 @@ fn half_open_concurrent_admission_never_exceeds_probe_budget() {
 
     let admitted = handles
         .into_iter()
-        .filter(|handle| handle.join().unwrap().is_some())
+        .map(|handle| handle.join().unwrap())
+        .filter(|permit| permit.is_some())
         .count();
 
     assert_eq!(admitted, 1);
