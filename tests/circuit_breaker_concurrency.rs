@@ -49,12 +49,10 @@ fn half_open_concurrent_admission_never_exceeds_probe_budget() {
 
     finish.wait();
 
-    let mut admitted = 0;
-    for handle in handles {
-        if handle.join().unwrap().is_some() {
-            admitted += 1;
-        }
-    }
+    let admitted = handles
+        .into_iter()
+        .filter(|handle| handle.join().unwrap().is_some())
+        .count();
 
     assert_eq!(admitted, 1);
 }
