@@ -1,5 +1,5 @@
 use std::fmt;
-use std::future::{Future, poll_fn};
+use std::future::{poll_fn, Future};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
@@ -232,8 +232,8 @@ mod tests {
     use super::*;
     use crate::{ExponentialBackoff, Jitter, LogicalRequestBudget};
     use std::num::NonZeroU32;
-    use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
 
     #[derive(Clone)]
     struct TestService {
