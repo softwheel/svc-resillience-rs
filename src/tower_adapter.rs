@@ -282,10 +282,10 @@ mod tests {
             fail_calls: 2,
             fail_ready_after: None,
         };
-        let layer = TowerRetryLayer::new(
-            policy(Duration::from_millis(1), 3),
-            |_: &&'static str| RetryDecision::Retry,
-        );
+        let layer =
+            TowerRetryLayer::new(policy(Duration::from_millis(1), 3), |_: &&'static str| {
+                RetryDecision::Retry
+            });
         let mut service = layer.layer(service);
         poll_fn(|cx| service.poll_ready(cx)).await.unwrap();
 
@@ -311,10 +311,10 @@ mod tests {
             fail_calls: usize::MAX,
             fail_ready_after: Some(1),
         };
-        let layer = TowerRetryLayer::new(
-            policy(Duration::from_millis(1), 2),
-            |_: &&'static str| RetryDecision::Retry,
-        );
+        let layer =
+            TowerRetryLayer::new(policy(Duration::from_millis(1), 2), |_: &&'static str| {
+                RetryDecision::Retry
+            });
         let mut service = layer.layer(service);
         poll_fn(|cx| service.poll_ready(cx)).await.unwrap();
 
@@ -341,10 +341,10 @@ mod tests {
             fail_calls: usize::MAX,
             fail_ready_after: None,
         };
-        let layer = TowerRetryLayer::new(
-            policy(Duration::from_millis(20), 2),
-            |_: &&'static str| RetryDecision::Retry,
-        );
+        let layer =
+            TowerRetryLayer::new(policy(Duration::from_millis(20), 2), |_: &&'static str| {
+                RetryDecision::Retry
+            });
         let mut service = layer.layer(service);
         poll_fn(|cx| service.poll_ready(cx)).await.unwrap();
 
