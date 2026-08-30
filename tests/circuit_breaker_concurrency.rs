@@ -1,7 +1,7 @@
 use std::sync::{Arc, Barrier};
 use std::time::Duration;
 
-use svc_resilience_rs::{CircuitBreaker, CircuitBreakerConfig, CircuitState};
+use softwheel_resilience::{CircuitBreaker, CircuitBreakerConfig, CircuitState};
 
 fn breaker(open_timeout: Duration, half_open_success_threshold: u32) -> CircuitBreaker {
     CircuitBreaker::new(
