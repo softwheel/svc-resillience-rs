@@ -11,6 +11,7 @@ categories = ["asynchronous", "concurrency", "network-programming"]
 
 [features]
 default = []
+metrics = ["dep:metrics"]
 tokio = ["dep:tokio"]
 tower = ["tokio", "dep:tower"]
 tracing = ["dep:tracing"]
@@ -19,6 +20,7 @@ tracing = ["dep:tracing"]
 # Keep dependency requirements broad enough for downstream applications to unify compatible
 # versions while developing the crate itself on the latest stable Rust toolchain.
 fastrand = "2.5"
+metrics = { version = "0.24.6", optional = true }
 tokio = { version = "1.51", features = ["macros", "time"], optional = true }
 tower = { version = "0.5.2", default-features = false, optional = true }
 tracing = { version = "0.1.41", default-features = false, optional = true }
