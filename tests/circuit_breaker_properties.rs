@@ -42,12 +42,8 @@ fn bounded_closed_state_sequences_match_consecutive_failure_model() {
 
             for sequence in 0..sequence_count {
                 let breaker = CircuitBreaker::new(
-                    CircuitBreakerConfig::new(
-                        failure_threshold,
-                        Duration::from_secs(60),
-                        1,
-                    )
-                    .unwrap(),
+                    CircuitBreakerConfig::new(failure_threshold, Duration::from_secs(60), 1)
+                        .unwrap(),
                 );
                 let mut consecutive_failures = 0_u32;
                 let mut expected_open = false;
