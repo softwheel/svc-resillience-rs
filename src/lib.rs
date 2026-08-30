@@ -21,6 +21,8 @@ pub mod shadow_policy;
 pub mod tokio_runtime;
 #[cfg(feature = "tower")]
 pub mod tower_adapter;
+#[cfg(feature = "tracing")]
+pub mod tracing_adapter;
 
 pub use bulkhead::{Bulkhead, BulkheadCallError, BulkheadPermit, BulkheadRejected};
 pub use circuit_breaker::{
@@ -61,3 +63,5 @@ pub use retry::retry_async;
 pub use tokio_runtime::{TokioExecutionStop, TokioRequestBudget};
 #[cfg(feature = "tower")]
 pub use tower_adapter::{TowerRequestFactory, TowerRetryError, TowerRetryLayer, TowerRetryService};
+#[cfg(feature = "tracing")]
+pub use tracing_adapter::TracingObserver;

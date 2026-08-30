@@ -13,6 +13,7 @@ categories = ["asynchronous", "concurrency", "network-programming"]
 default = []
 tokio = ["dep:tokio"]
 tower = ["tokio", "dep:tower"]
+tracing = ["dep:tracing"]
 
 [dependencies]
 # Keep dependency requirements broad enough for downstream applications to unify compatible
@@ -20,6 +21,7 @@ tower = ["tokio", "dep:tower"]
 fastrand = "2.5"
 tokio = { version = "1.51", features = ["macros", "time"], optional = true }
 tower = { version = "0.5.2", default-features = false, optional = true }
+tracing = { version = "0.1.41", default-features = false, optional = true }
 
 [dev-dependencies]
 # Exact model-checker version keeps concurrency verification reproducible.
