@@ -253,7 +253,8 @@ mod tests {
 
         let admitted = handles
             .into_iter()
-            .filter(|handle| handle.join().unwrap())
+            .map(|handle| handle.join().unwrap())
+            .filter(|admitted| *admitted)
             .count();
         assert_eq!(admitted, CAPACITY as usize);
         assert_eq!(budget.available_retries(), 0);
