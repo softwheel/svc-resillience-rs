@@ -164,11 +164,8 @@ mod tests {
 
     #[test]
     fn observation_is_absent_when_no_shadow_route_was_planned() {
-        let table = RouteTable::new(
-            9,
-            vec![Route::new(RouteId::new("primary").unwrap(), 1)],
-        )
-        .unwrap();
+        let table =
+            RouteTable::new(9, vec![Route::new(RouteId::new("primary").unwrap(), 1)]).unwrap();
         let plan = RoutePlanner::plan_with(
             &table,
             ShadowSampling::always(),
