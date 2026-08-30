@@ -85,7 +85,9 @@ fn retry_policy_never_admits_past_attempt_or_elapsed_budget() {
                     }
 
                     if let Some(delay) = decision {
-                        assert!(elapsed.saturating_add(delay) <= Duration::from_millis(max_elapsed_ms));
+                        assert!(
+                            elapsed.saturating_add(delay) <= Duration::from_millis(max_elapsed_ms)
+                        );
                     }
                 }
             }
