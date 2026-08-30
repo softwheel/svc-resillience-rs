@@ -104,7 +104,7 @@ impl<E> std::error::Error for TowerRetryError<E> where E: std::error::Error + 's
 /// let mut service = layer.layer(Echo);
 /// let budget = TokioRequestBudget::start(LogicalRequestBudget::bounded(Duration::from_secs(1)));
 /// let request = TowerRequestFactory::new(|| 7, budget, Duration::from_millis(50));
-/// std::future::poll_fn(|cx| service.poll_ready(cx)).await.unwrap();
+/// service.ready_for(&request).await.unwrap();
 /// assert_eq!(service.call(request).await.unwrap(), 7);
 /// # }
 /// ```
@@ -141,6 +141,24 @@ pub struct TowerRetryService<S, C> {
     inner: S,
     policy: RetryPolicy,
     classify: C,
+}
+
+impl<S, C> TowerRetryService<S, C> {
+    /// Wait until the service is ready for this request-factory type.
+    ///
+    /// Tower's `poll_ready` method is generic over the service's request type. Carrying the factory
+    /// reference into this convenience method makes that type explicit without consuming or
+    /// invoking the factory. The method is otherwise exactly a `poll_ready` loop and does not admit
+    /// a call or bypass backpressure.
+    pub async fn ready_for<F>(
+        &mut self,
+        _request: &TowerRequestFactory<F>,
+    ) -> Result<(), <Self as Service<TowerRequestFactory<F>>>::Error>
+    where
+        Self: Service<TowerRequestFactory<F>>,
+    {
+        poll_fn(|cx| <Self as Service<TowerRequestFactory<F>>>::poll_ready(self, cx)).await
+    }
 }
 
 impl<S, C, F, Request> Service<TowerRequestFactory<F>> for TowerRetryService<S, C>
@@ -287,7 +305,6 @@ mod tests {
                 RetryDecision::Retry
             });
         let mut service = layer.layer(service);
-        poll_fn(|cx| service.poll_ready(cx)).await.unwrap();
 
         let made = Arc::new(AtomicUsize::new(0));
         let made_for_factory = made.clone();
@@ -296,6 +313,7 @@ mod tests {
             budget(Duration::from_secs(1)),
             Duration::from_millis(100),
         );
+        service.ready_for(&request).await.unwrap();
 
         assert_eq!(service.call(request).await.unwrap(), 3);
         assert_eq!(calls.load(Ordering::SeqCst), 3);
@@ -316,15 +334,14 @@ mod tests {
                 RetryDecision::Retry
             });
         let mut service = layer.layer(service);
-        poll_fn(|cx| service.poll_ready(cx)).await.unwrap();
+        let request = TowerRequestFactory::new(
+            || 1,
+            budget(Duration::from_secs(1)),
+            Duration::from_millis(100),
+        );
+        service.ready_for(&request).await.unwrap();
 
-        let result = service
-            .call(TowerRequestFactory::new(
-                || 1,
-                budget(Duration::from_secs(1)),
-                Duration::from_millis(100),
-            ))
-            .await;
+        let result = service.call(request).await;
 
         assert!(matches!(
             result,
@@ -346,15 +363,14 @@ mod tests {
                 RetryDecision::Retry
             });
         let mut service = layer.layer(service);
-        poll_fn(|cx| service.poll_ready(cx)).await.unwrap();
+        let request = TowerRequestFactory::new(
+            || 1,
+            budget(Duration::from_millis(10)),
+            Duration::from_millis(5),
+        );
+        service.ready_for(&request).await.unwrap();
 
-        let result = service
-            .call(TowerRequestFactory::new(
-                || 1,
-                budget(Duration::from_millis(10)),
-                Duration::from_millis(5),
-            ))
-            .await;
+        let result = service.call(request).await;
 
         assert!(matches!(
             result,
