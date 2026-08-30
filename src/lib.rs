@@ -10,6 +10,7 @@ pub mod deadline;
 pub mod eligibility;
 pub mod failover;
 pub mod retry;
+pub mod retry_budget;
 pub mod routing;
 pub mod shadow;
 pub mod shadow_outcome;
@@ -28,6 +29,9 @@ pub use failover::{
 };
 pub use retry::{
     BackoffConfigError, ExponentialBackoff, Jitter, RetryDecision, RetryPolicy, retry,
+};
+pub use retry_budget::{
+    PrimaryRetryBudget, RetryBudgetConfig, RetryBudgetDecision, ShadowRetryBudget,
 };
 pub use routing::{Route, RouteId, RouteTable, RouteTableError, RouteTableStore};
 pub use shadow::{
