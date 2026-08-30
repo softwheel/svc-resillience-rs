@@ -150,9 +150,12 @@ mod tests {
 
     #[tokio::test]
     async fn completed_child_is_returned_without_reclassification() {
-        let budget = TokioRequestBudget::start(LogicalRequestBudget::bounded(Duration::from_secs(1)));
+        let budget =
+            TokioRequestBudget::start(LogicalRequestBudget::bounded(Duration::from_secs(1)));
 
-        let result = budget.timeout(Duration::from_millis(50), async { 7 }).await;
+        let result = budget
+            .timeout(Duration::from_millis(50), async { 7 })
+            .await;
 
         assert_eq!(result, Ok(7));
     }
@@ -174,7 +177,8 @@ mod tests {
 
     #[tokio::test]
     async fn ready_cancellation_is_not_classified_as_downstream_failure() {
-        let budget = TokioRequestBudget::start(LogicalRequestBudget::bounded(Duration::from_secs(1)));
+        let budget =
+            TokioRequestBudget::start(LogicalRequestBudget::bounded(Duration::from_secs(1)));
 
         let result = budget
             .timeout_or_cancel(
@@ -198,7 +202,8 @@ mod tests {
 
     #[tokio::test]
     async fn zero_backoff_is_allowed_when_positive_budget_remains() {
-        let budget = TokioRequestBudget::start(LogicalRequestBudget::bounded(Duration::from_secs(1)));
+        let budget =
+            TokioRequestBudget::start(LogicalRequestBudget::bounded(Duration::from_secs(1)));
 
         assert_eq!(budget.sleep_backoff(Duration::ZERO).await, Ok(()));
     }
