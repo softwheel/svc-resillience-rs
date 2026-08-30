@@ -9,6 +9,8 @@ pub mod circuit_breaker;
 pub mod deadline;
 pub mod eligibility;
 pub mod failover;
+#[cfg(feature = "metrics")]
+pub mod metrics_adapter;
 pub mod observability;
 pub mod resource_registry;
 pub mod retry;
@@ -35,6 +37,8 @@ pub use failover::{
     RouteAttempt, RouteAttemptBudget, RouteDecision, RouteFailover, RouteFailoverError,
     RouteOutcome, RouteStopReason,
 };
+#[cfg(feature = "metrics")]
+pub use metrics_adapter::MetricsObserver;
 pub use observability::{
     BudgetStage, NoopObserver, Observer, OutcomeClass, RejectionReason, ResilienceEvent,
     RetrySuppressionReason, ShadowSamplingOutcome, TrafficRole,
