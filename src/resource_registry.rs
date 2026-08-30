@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::num::{NonZeroU32, NonZeroUsize};
+use std::num::NonZeroUsize;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
@@ -214,6 +214,7 @@ impl RouteResourceRegistry {
 mod tests {
     use super::*;
     use crate::RetryBudgetDecision;
+    use std::num::NonZeroU32;
     use std::sync::Barrier;
     use std::thread;
     use std::time::Duration;
@@ -309,9 +310,14 @@ mod tests {
             }));
         }
 
-        let resources: Vec<_> = threads.into_iter().map(|thread| thread.join().unwrap()).collect();
+        let resources: Vec<_> = threads
+            .into_iter()
+            .map(|thread| thread.join().unwrap())
+            .collect();
         let first = &resources[0];
-        assert!(resources.iter().all(|resources| Arc::ptr_eq(first, resources)));
+        assert!(resources
+            .iter()
+            .all(|resources| Arc::ptr_eq(first, resources)));
         assert_eq!(registry.len(), 1);
     }
 }
