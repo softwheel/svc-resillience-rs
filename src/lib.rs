@@ -9,6 +9,7 @@ pub mod circuit_breaker;
 pub mod deadline;
 pub mod eligibility;
 pub mod failover;
+pub mod observability;
 pub mod resource_registry;
 pub mod retry;
 pub mod retry_budget;
@@ -27,6 +28,10 @@ pub use eligibility::{RouteEligibility, RouteEligibilityError};
 pub use failover::{
     RouteAttempt, RouteAttemptBudget, RouteDecision, RouteFailover, RouteFailoverError,
     RouteOutcome, RouteStopReason,
+};
+pub use observability::{
+    BudgetStage, NoopObserver, Observer, OutcomeClass, RejectionReason, ResilienceEvent,
+    RetrySuppressionReason, ShadowSamplingOutcome, TrafficRole,
 };
 pub use resource_registry::{
     PrimaryRouteResources, RouteResourcePolicy, RouteResourceRegistry, RouteResources,
