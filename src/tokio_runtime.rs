@@ -153,9 +153,7 @@ mod tests {
         let budget =
             TokioRequestBudget::start(LogicalRequestBudget::bounded(Duration::from_secs(1)));
 
-        let result = budget
-            .timeout(Duration::from_millis(50), async { 7 })
-            .await;
+        let result = budget.timeout(Duration::from_millis(50), async { 7 }).await;
 
         assert_eq!(result, Ok(7));
     }
