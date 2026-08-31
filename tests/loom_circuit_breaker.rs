@@ -103,9 +103,7 @@ fn loom_models_breaker_half_open_probe_budget_and_release() {
         let first_handle = thread::spawn(move || {
             let admitted = {
                 let mut guard = first.lock().unwrap();
-                if guard.mode == Mode::HalfOpen
-                    && guard.half_open_in_flight < PROBE_BUDGET
-                {
+                if guard.mode == Mode::HalfOpen && guard.half_open_in_flight < PROBE_BUDGET {
                     guard.half_open_in_flight += 1;
                     assert!(guard.half_open_in_flight <= PROBE_BUDGET);
                     true
@@ -124,9 +122,7 @@ fn loom_models_breaker_half_open_probe_budget_and_release() {
         let second_handle = thread::spawn(move || {
             let admitted = {
                 let mut guard = second.lock().unwrap();
-                if guard.mode == Mode::HalfOpen
-                    && guard.half_open_in_flight < PROBE_BUDGET
-                {
+                if guard.mode == Mode::HalfOpen && guard.half_open_in_flight < PROBE_BUDGET {
                     guard.half_open_in_flight += 1;
                     assert!(guard.half_open_in_flight <= PROBE_BUDGET);
                     true
