@@ -20,6 +20,25 @@ impl TrafficRole {
 }
 
 /// Bounded reasons for policy/admission rejection.
+///
+/// New rejection classes may be added as resilience policies evolve. Downstream code must
+/// therefore include a wildcard arm rather than exhaustively matching the current variants.
+///
+/// ```compile_fail
+/// use softwheel_resilience::RejectionReason;
+///
+/// fn classify(reason: RejectionReason) -> &'static str {
+///     match reason {
+///         RejectionReason::CircuitOpen => "circuit_open",
+///         RejectionReason::BulkheadFull => "bulkhead_full",
+///         RejectionReason::RetryBudgetExhausted => "retry_budget_exhausted",
+///         RejectionReason::LogicalDeadlineExhausted => "logical_deadline_exhausted",
+///         RejectionReason::RouteAttemptBudgetExhausted => "route_attempt_budget_exhausted",
+///         RejectionReason::NoEligibleRoute => "no_eligible_route",
+///     }
+/// }
+/// ```
+#[non_exhaustive]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RejectionReason {
     CircuitOpen,
@@ -45,6 +64,9 @@ impl RejectionReason {
 }
 
 /// Why a retry did not proceed.
+///
+/// This taxonomy is extension-oriented and may gain new suppression classes.
+#[non_exhaustive]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RetrySuppressionReason {
     RetryPolicyExhausted,
@@ -64,6 +86,9 @@ impl RetrySuppressionReason {
 }
 
 /// Stable outcome classes. Raw errors are deliberately excluded from built-in labels.
+///
+/// Outcome vocabulary may grow without forcing a downstream major-version migration.
+#[non_exhaustive]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OutcomeClass {
     Succeeded,
@@ -87,6 +112,9 @@ impl OutcomeClass {
 }
 
 /// Where logical-request budget exhaustion was observed.
+///
+/// Additional policy stages may be introduced as orchestration grows.
+#[non_exhaustive]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BudgetStage {
     BeforeAttempt,
@@ -130,6 +158,9 @@ impl ShadowSamplingOutcome {
 /// durations, generations, and closed enums. Request IDs, URLs, raw errors, headers, user IDs,
 /// and other request-derived strings have no field in this API, preventing built-in adapters
 /// from accidentally turning unbounded data into metric labels.
+///
+/// The event vocabulary is extension-oriented; observers must tolerate future event variants.
+#[non_exhaustive]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ResilienceEvent {
     AttemptAdmitted {

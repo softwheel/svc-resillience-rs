@@ -16,13 +16,17 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 - Optional Tokio runtime mechanics and Tower `Layer`/`Service` integration.
 - Deterministic property/state-transition tests, Loom concurrency models, Criterion baselines, and dependency/license auditing.
 
+### Changed
+
+- Mark extension-oriented observability taxonomies (`RejectionReason`, `RetrySuppressionReason`, `OutcomeClass`, `BudgetStage`, and `ResilienceEvent`) as `#[non_exhaustive]` before the first crates.io release so future variants can be added without breaking downstream exhaustive matches.
+
 ### Verification
 
 - Spec 0001 / M0 is Verified.
 - Spec 0002 routing and shadowing semantics are Verified.
-- M2 hardening requires the full latest-stable Rust gate before merge: formatting, Clippy with warnings denied, all-feature tests, benchmark compilation, rustdoc with warnings denied, Loom models, and dependency/license audit.
+- Spec 0003 / M2 production integration and observability is Verified.
+- Release-boundary API changes require the full latest-stable Rust gate before merge: formatting, Clippy with warnings denied, all-feature tests, benchmark compilation, rustdoc with warnings denied, Loom models, and dependency/license audit.
 
 ### Release blockers
 
 - Rename the canonical GitHub repository from `svc-resillience-rs` to `svc-resilience-rs`, or otherwise establish and verify the intended canonical redirect, before crates.io publication.
-- Complete the M2.9 release checklist and final verification record before publishing `0.1.0`.
