@@ -1,6 +1,8 @@
 # Spec 0003: Production Integration, Observability, and Hardening
 
-Status: **Proposed**
+Status: **Verified**
+
+Verification record: [`docs/verification/0003-m2-final-verification.md`](../verification/0003-m2-final-verification.md)
 
 ## Problem
 
