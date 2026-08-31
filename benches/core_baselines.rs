@@ -58,7 +58,11 @@ fn routing_baselines(c: &mut Criterion) {
                     )
                 })
                 .collect();
-            black_box(store.replace(routes).expect("benchmark replacement is valid"));
+            black_box(
+                store
+                    .replace(routes)
+                    .expect("benchmark replacement is valid"),
+            );
         });
     });
 
