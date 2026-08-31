@@ -28,7 +28,9 @@ fn bounded_retry_budget_accounting_matches_reference_model() {
                     available -= 1;
                     assert_eq!(
                         budget.try_acquire_retry(),
-                        RetryBudgetDecision::Admitted { remaining: available }
+                        RetryBudgetDecision::Admitted {
+                            remaining: available
+                        }
                     );
                 }
 
