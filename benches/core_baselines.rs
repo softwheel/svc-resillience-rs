@@ -91,11 +91,8 @@ fn breaker_baselines(c: &mut Criterion) {
 
     c.bench_function("circuit_breaker/closed_successful_call", |b| {
         b.iter(|| {
-            black_box(
-                breaker
-                    .call(|| Ok::<(), ()>(()))
-                    .expect("closed benchmark breaker admits calls"),
-            );
+            black_box(breaker.call(|| Ok::<(), ()>(())))
+                .expect("closed benchmark breaker admits calls");
         });
     });
 }
