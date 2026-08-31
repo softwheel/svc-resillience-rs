@@ -25,13 +25,13 @@ fn bounded_sampling_thresholds_match_exact_integer_model() {
         let sampling = ShadowSampling::new(parts_per_million).unwrap();
 
         assert!(sampling.sample_with(|_| 0).unwrap());
-        assert!(sampling
-            .sample_with(|_| parts_per_million - 1)
-            .unwrap());
+        assert!(sampling.sample_with(|_| parts_per_million - 1).unwrap());
         assert!(!sampling.sample_with(|_| parts_per_million).unwrap());
-        assert!(!sampling
-            .sample_with(|_| SHADOW_PARTS_PER_MILLION - 1)
-            .unwrap());
+        assert!(
+            !sampling
+                .sample_with(|_| SHADOW_PARTS_PER_MILLION - 1)
+                .unwrap()
+        );
         assert_eq!(
             sampling.sample_with(|range| range.end).unwrap_err(),
             ShadowSamplingError::DrawOutOfRange
@@ -44,11 +44,7 @@ fn shadow_sampling_never_changes_primary_selection() {
     let table = table();
 
     for primary_draw in 0..10_u64 {
-        let expected_primary = table
-            .select_with(|_| primary_draw)
-            .unwrap()
-            .id()
-            .clone();
+        let expected_primary = table.select_with(|_| primary_draw).unwrap().id().clone();
 
         let disabled = RoutePlanner::plan_with(
             &table,
