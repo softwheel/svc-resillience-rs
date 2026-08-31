@@ -1,3 +1,4 @@
+use loom::sync::atomic::{AtomicBool, Ordering};
 use loom::sync::{Arc, Mutex};
 use loom::thread;
 
@@ -46,6 +47,7 @@ impl Shared {
 fn loom_models_breaker_stale_generation_outcome() {
     loom::model(|| {
         let shared = Arc::new(Mutex::new(Shared::half_open()));
+        let transitioned = Arc::new(AtomicBool::new(false));
 
         let stale = {
             let mut guard = shared.lock().unwrap();
@@ -54,14 +56,21 @@ fn loom_models_breaker_stale_generation_outcome() {
         };
 
         let transition = Arc::clone(&shared);
+        let transition_done = Arc::clone(&transitioned);
         let transition_handle = thread::spawn(move || {
             let mut guard = transition.lock().unwrap();
             guard.transition_open();
+            drop(guard);
+            transition_done.store(true, Ordering::Release);
         });
 
         let completion = Arc::clone(&shared);
+        let completion_ready = Arc::clone(&transitioned);
         let completion_handle = thread::spawn(move || {
-            thread::yield_now();
+            while !completion_ready.load(Ordering::Acquire) {
+                thread::yield_now();
+            }
+
             let mut guard = completion.lock().unwrap();
             if guard.generation == stale && guard.mode == Mode::HalfOpen {
                 guard.half_open_in_flight = guard.half_open_in_flight.saturating_sub(1);
