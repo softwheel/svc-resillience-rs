@@ -1,6 +1,6 @@
 # M2 SemVer and Public API Review
 
-Status: **Proposed verification record**
+Status: **Verified**
 
 Scope: public API and release-surface review before M2 release engineering. This review does not change runtime behavior, routing, retry budgets, concurrency semantics, or primary/shadow isolation.
 
@@ -31,13 +31,13 @@ Scope: public API and release-surface review before M2 release engineering. This
 - Record every public type/function/feature removal or signature change in the changelog.
 - Once a crates.io baseline exists, add automated API compatibility checking against the latest published release; before the first publish, a source/API review is the meaningful baseline.
 
-## Release blockers discovered by this review
+## Publication blockers and follow-ups
 
 - [ ] Rename/redirect the GitHub repository from `svc-resillience-rs` to intended `svc-resilience-rs`, or temporarily align package metadata with the canonical location before publishing.
-- [ ] Decide whether extension-oriented public enums should be marked `#[non_exhaustive]` before the first public release; changing this after downstream users exist is more disruptive.
-- [ ] Produce changelog/release automation and crates.io publishing checklist in M2.9.
-- [ ] Mark Spec 0003 Verified only after its final verification record is complete.
+- [ ] Decide whether extension-oriented public enums should be marked `#[non_exhaustive]` before the first crates.io publication; this is a publication/API policy decision, not a correctness blocker for M2 verification.
+- [x] Produce changelog/release automation and crates.io publishing checklist in M2.9 (#45, #46).
+- [x] Complete the final M2 verification record and latest-stable verification PR.
 
 ## Verification conclusion
 
-The current API shape is suitable to proceed to release engineering without production-code changes. The review intentionally identifies repository naming and enum extensibility as pre-publish decisions rather than making speculative semantic changes. Existing correctness-first concurrency verification, explicit budgets, runtime-agnostic core semantics, and strict shadow isolation remain unchanged.
+The current API shape is verified for the M2 pre-1.0 milestone. Runtime/ecosystem dependencies remain optional, primary/shadow isolation remains type-visible, and no API change was required to satisfy the correctness contract. Repository naming and enum extensibility remain explicit pre-publication decisions and must be resolved before the first crates.io release, but they do not weaken the verified concurrency, budget, routing, or shadow-isolation semantics.
