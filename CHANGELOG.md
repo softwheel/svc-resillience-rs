@@ -8,6 +8,9 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ### Added
 
+- Optional Envoy v3 policy API (`RoutePolicy`, `ClusterLimits`) with strict JSON fragment import/export, Envoy retry count/backoff semantics, weighted primary selection, named mirror planning, and priority-scoped resource admission.
+- Shared configuration fixtures and an Envoy 1.35.0 binary schema-validation CI job; see Spec 0004 for the compatibility boundary.
+
 - Runtime-agnostic resilience primitives for retry, circuit breaking, bulkheading, dynamic routing, failover, and isolated traffic shadowing.
 - Explicit logical-request deadline and remaining-budget semantics.
 - Shared retry budgets with distinct primary and shadow budget types.

@@ -1,0 +1,28 @@
+name: Envoy configuration compatibility
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  envoy-v3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test policy adapter without runtime features
+        run: cargo test --no-default-features --features envoy --test envoy_policy
+      - name: Export via Rust API into Envoy bootstrap
+        run: |
+          cargo run --quiet --example export_envoy --features envoy > /tmp/envoy-fragments.json
+          python3 scripts/envoy_bootstrap.py < /tmp/envoy-fragments.json > /tmp/envoy-bootstrap.json
+      - name: Validate exported configuration in Envoy 1.35.0
+        run: >-
+          docker run --rm --network none
+          -v /tmp/envoy-bootstrap.json:/config.json:ro
+          envoyproxy/envoy:v1.35.0
+          envoy --mode validate -c /config.json

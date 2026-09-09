@@ -1,0 +1,6 @@
+{
+  "thresholds": [
+    { "priority": "DEFAULT", "max_connections": 100, "max_pending_requests": 0, "max_requests": 100, "max_retries": 10 },
+    { "priority": "HIGH", "max_requests": 200, "max_retries": 20 }
+  ]
+}
