@@ -8,6 +8,8 @@ pub mod bulkhead;
 pub mod circuit_breaker;
 pub mod deadline;
 pub mod eligibility;
+#[cfg(feature = "envoy")]
+pub mod envoy;
 pub mod failover;
 #[cfg(feature = "metrics")]
 pub mod metrics_adapter;

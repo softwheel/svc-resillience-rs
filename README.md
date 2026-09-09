@@ -31,128 +31,49 @@ resilience layer around it.
 | Dynamic routing | Implemented | immutable snapshots, atomic replacement, eligibility filtering, bounded failover |
 | Traffic shadowing | Implemented | deterministic sampling, isolated budgets, observable non-propagating outcomes |
 
-## Retry example
+## Envoy v3 policy API (recommended for Envoy users)
+
+Enable the `envoy` feature and reuse supported Envoy **RouteAction** and
+**CircuitBreakers** JSON fragments. Two entry points replace manual policy construction:
+`RoutePolicy` for routing, retry decisions, timeouts and mirror planning; `ClusterLimits`
+for shared resource admission. `to_json()` exports the fragments back to Envoy.
 
 ```rust
-use std::num::NonZeroU32;
-use std::time::Duration;
-use softwheel_resilience::{retry, ExponentialBackoff, Jitter, RetryDecision, RetryPolicy};
+# #[cfg(feature = "envoy")]
+# fn example() -> Result<(), Box<dyn std::error::Error>> {
+use softwheel_resilience::envoy::{ClusterLimits, Priority, Resource, RoutePolicy};
 
-#[derive(Debug, PartialEq)]
-struct CallError {
-    transient: bool,
-}
+let route = RoutePolicy::from_json(r#"{
+  "cluster": "orders",
+  "timeout": "2s",
+  "retry_policy": { "retry_on": "5xx", "num_retries": 2 }
+}"#)?;
+let limits = ClusterLimits::from_json(r#"{
+  "thresholds": [{ "max_requests": 100, "max_retries": 10 }]
+}"#)?;
 
-let backoff = ExponentialBackoff::new(
-    Duration::from_millis(1),
-    Duration::from_millis(4),
-    2,
-    Jitter::None,
-).unwrap();
-let policy = RetryPolicy::new(NonZeroU32::new(3).unwrap(), backoff);
-let mut calls = 0;
-
-let result = retry(
-    &policy,
-    || {
-        calls += 1;
-        if calls < 2 {
-            Err(CallError { transient: true })
-        } else {
-            Ok("ok")
-        }
-    },
-    |error| {
-        if error.transient {
-            RetryDecision::Retry
-        } else {
-            RetryDecision::DoNotRetry
-        }
-    },
-);
-
-assert_eq!(result, Ok("ok"));
-assert_eq!(calls, 2);
+let plan = route.plan();
+let permit = limits.try_acquire(Priority::Default, Resource::Request)?;
+assert_eq!(plan.cluster(), "orders");
+// Transport dispatches to plan.cluster() while holding the permit.
+drop(permit);
+# Ok(())
+# }
 ```
 
-The classifier is deliberately application-owned. A resilience library cannot safely assume that
-an arbitrary error is retryable; retrying non-idempotent operations or permanent failures can
-amplify an incident.
+This release provides **configuration and policy compatibility**, not an HTTP proxy,
+xDS client/server, or Proxy-Wasm plugin. Transport code still owns replay safety, deadline
+enforcement, endpoint resolution and isolated mirror dispatch. Unsupported configuration
+is rejected, never silently ignored. Envoy resource circuit breakers are distinct from the
+kernel's failure-based Closed/Open/HalfOpen breaker; outlier detection is not implemented.
 
-## Routing and shadowing example
+See the [compatibility contract and migration guide](docs/specs/0004-envoy-policy-api.md),
+[shared Envoy configuration](examples/envoy/route.json), and runnable
+[`envoy_policy` example](examples/envoy_policy.rs). CI validates Rust-exported configuration
+using an actual Envoy 1.35.0 binary. This checks schema acceptance, not traffic-level parity.
 
-The M1 APIs keep one immutable routing generation and one health/policy eligibility decision for a
-logical request. Shadow planning is diagnostic only and cannot replace the primary result.
-
-```rust
-use std::num::NonZeroUsize;
-use std::sync::Arc;
-use std::time::Duration;
-use softwheel_resilience::{
-    Route, RouteAttemptBudget, RouteDecision, RouteEligibility, RouteFailover, RouteId,
-    RouteOutcome, RoutePlanner, RouteTable, RouteTableStore, ShadowExecutionPolicy,
-    ShadowObservation, ShadowOutcome, ShadowSampling,
-};
-
-let table = RouteTable::new(
-    7,
-    vec![
-        Route::new(RouteId::new("primary-a").unwrap(), 3),
-        Route::new(RouteId::new("primary-b").unwrap(), 2),
-        Route::new(RouteId::new("draining").unwrap(), 100),
-    ],
-)
-.unwrap();
-let store = RouteTableStore::new(table);
-let snapshot = store.snapshot();
-
-let eligibility = RouteEligibility::from_predicate(&snapshot, |route| {
-    route.id().as_str() != "draining"
-});
-
-let plan = RoutePlanner::plan_eligible_with(
-    &snapshot,
-    &eligibility,
-    ShadowSampling::always(),
-    |_| 0,
-    |_| unreachable!(),
-    |_| 0,
-)
-.unwrap();
-assert_eq!(plan.primary().as_str(), "primary-a");
-assert_eq!(plan.shadow().unwrap().as_str(), "primary-b");
-assert_eq!(plan.generation(), 7);
-
-let observation = ShadowObservation::from_plan(&plan).unwrap();
-assert_eq!(observation.route_id().as_str(), "primary-b");
-let shadow_outcome: ShadowOutcome<&str> = ShadowOutcome::Failed("diagnostic failure");
-assert_eq!(shadow_outcome.error(), Some(&"diagnostic failure"));
-
-let shadow_policy = ShadowExecutionPolicy::new(Duration::from_millis(50)).unwrap();
-assert!(!shadow_policy.retries_enabled());
-assert_eq!(
-    shadow_policy.effective_deadline(Duration::from_millis(20)),
-    Duration::from_millis(20)
-);
-
-let budget = RouteAttemptBudget::new(NonZeroUsize::new(2).unwrap());
-let mut failover = RouteFailover::from_primary_eligibility(
-    Arc::clone(&snapshot),
-    eligibility,
-    budget,
-    plan.primary().clone(),
-)
-.unwrap();
-
-let decision = failover.classify_with(RouteOutcome::Failover, |_| 0).unwrap();
-match decision {
-    RouteDecision::Failover(next) => {
-        assert_eq!(next.ordinal(), 1);
-        assert_eq!(next.route_id().as_str(), "primary-b");
-    }
-    other => panic!("unexpected decision: {other:?}"),
-}
-```
+The existing primitives remain available for custom integrations; their longer examples
+are in [advanced composition](docs/ADVANCED-USAGE.md).
 
 ## Circuit-breaker semantics
 
@@ -182,6 +103,7 @@ breaker, and deadline budget. It must never delay or alter the primary response.
 
 ## Feature flags
 
+- `envoy`: enables strict Envoy v3 JSON policy import/export and policy/admission helpers.
 - `tokio`: enables `retry_async` using `tokio::time::sleep`.
 
 ## Project process

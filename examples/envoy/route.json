@@ -1,0 +1,21 @@
+{
+  "weighted_clusters": {
+    "clusters": [
+      { "name": "orders", "weight": 95 },
+      { "name": "orders-canary", "weight": 5 }
+    ]
+  },
+  "timeout": "2s",
+  "retry_policy": {
+    "retry_on": "5xx,connect-failure",
+    "num_retries": 2,
+    "per_try_timeout": "0.5s",
+    "retry_back_off": { "base_interval": "0.025s", "max_interval": "0.25s" }
+  },
+  "request_mirror_policies": [
+    {
+      "cluster": "orders-shadow",
+      "runtime_fraction": { "default_value": { "numerator": 5, "denominator": "HUNDRED" } }
+    }
+  ]
+}

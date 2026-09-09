@@ -42,3 +42,16 @@ Spec: `docs/specs/0002-routing-shadowing.md`
 - Semver/API review.
 - Security and dependency audit.
 - crates.io release automation and changelog discipline.
+
+## M4 — Envoy-compatible adoption interface
+
+Spec: `docs/specs/0004-envoy-policy-api.md`
+
+- [x] Replace manual policy setup in the main README with an optional Envoy v3 API.
+- [x] Import/export supported RouteAction and CircuitBreakers JSON fragments.
+- [x] Preserve retry count, backoff, resource-limit and mirror-target meanings.
+- [x] Add policy contract tests and Rust-export -> Envoy schema validation.
+- [ ] Add a transport executor that enforces the policies end to end (including response/body lifetime, replay safety, deadline and mirror isolation).
+- [ ] Implement endpoint-level Envoy outlier detection separately from the existing failure breaker.
+- [ ] Add protobuf resource conversion and xDS subscriptions with ACK/NACK, version/nonce handling, reconnect, removal and atomic publication tests.
+- [ ] Verify live traffic behavior before claiming data-plane or xDS interoperability.
